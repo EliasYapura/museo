@@ -115,7 +115,11 @@ CREATE TABLE misiones (
     creada_en           TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
     actualizada_en      TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_duracion     CHECK (duracion_estimada BETWEEN 1 AND 240),
-    CONSTRAINT chk_no_autoprevia CHECK (mision_previa_id IS NULL OR mision_previa_id <> id)
+    CONSTRAINT chk_no_autoprevia CHECK (mision_previa_id IS NULL OR mision_previa_id <> id),
+    -- NOT NULL no alcanza: un texto vacio o de solo espacios no es NULL (ADM02).
+    -- '\S' exige al menos un caracter que no sea espacio, tabulacion ni salto.
+    CONSTRAINT chk_nombre_con_texto      CHECK (nombre ~ '\S'),
+    CONSTRAINT chk_descripcion_con_texto CHECK (descripcion ~ '\S')
 );
 
 CREATE INDEX idx_misiones_activas ON misiones(activa) WHERE archivada = FALSE;
