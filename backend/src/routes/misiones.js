@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
+import { validarMision } from '../validaciones/mision.js';
 
 export const misionesRouter = Router();
 
-// Codigos de error de PostgreSQL que indican datos invalidos enviados por el
-// cliente. Sin esta traduccion llegarian al manejador general como error 500,
-// que significa "fallo el servidor", cuando en realidad fallo la peticion.
+// Codigos de error de PostgreSQL que indican datos invalidos. La validacion de
+// arriba deberia atajarlos antes; esto es la ultima red por si una regla de la
+// base y una de la API llegaran a diferir. Sin esta traduccion llegarian al
+// manejador general como error 500, que significa "fallo el servidor".
 const ERRORES_DE_DATOS = {
   '23502': 'Falta un dato obligatorio', // not_null_violation
   '23514': 'Algún dato está fuera del rango permitido', // check_violation
@@ -15,38 +17,16 @@ const ERRORES_DE_DATOS = {
   '22001': 'Algún texto es demasiado largo', // string_data_right_truncation
 };
 
-// La imagen es opcional: un campo ausente o vacio se guarda como NULL.
-// Si viene, solo se aceptan direcciones http o https. Un esquema como
-// "javascript:" guardado en la base podria ejecutar codigo en el navegador
-// de quien abra la mision, si algun dia se usa la direccion como enlace.
-function normalizarImagen(valor) {
-  if (valor === undefined || valor === null) return { url: null };
-  if (typeof valor !== 'string') return { error: true };
-
-  const texto = valor.trim();
-  if (texto === '') return { url: null };
-
-  try {
-    const url = new URL(texto);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return { error: true };
-    return { url: texto };
-  } catch {
-    return { error: true };
-  }
-}
-
 // POST /misiones — crea una mision. Solo administradores.
 misionesRouter.post('/', verificarToken, requerirRol('administrador'), async (req, res) => {
-  const { nombre, descripcion, duracion_estimada, imagen_url } = req.body ?? {};
-
-  const imagen = normalizarImagen(imagen_url);
-  if (imagen.error) {
-    return res.status(400).json({ error: 'La imagen de portada debe ser una dirección http o https' });
+  const { valores, errores } = validarMision(req.body ?? {});
+  if (Object.keys(errores).length > 0) {
+    return res.status(400).json({ error: 'Datos inválidos', errores });
   }
 
   try {
-    // Se eligen campo por campo los datos que se guardan. Todo lo demas que
-    // venga en el cuerpo se ignora:
+    // Se guardan solo los campos validados. Todo lo demas que venga en el
+    // cuerpo se ignora:
     // - activa no se inserta, asi la base aplica su valor por defecto (FALSE)
     //   y ninguna mision nace publicada, aunque el cuerpo diga lo contrario.
     // - creada_por sale del token y no del cuerpo, para que nadie pueda
@@ -56,7 +36,7 @@ misionesRouter.post('/', verificarToken, requerirRol('administrador'), async (re
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, nombre, descripcion, duracion_estimada, imagen_url,
                  dificultad, activa, creada_por, creada_en, actualizada_en`,
-      [nombre, descripcion, duracion_estimada, imagen.url, req.usuario.id]
+      [valores.nombre, valores.descripcion, valores.duracion_estimada, valores.imagen_url, req.usuario.id]
     );
     return res.status(201).json({ mision: rows[0] });
   } catch (err) {
