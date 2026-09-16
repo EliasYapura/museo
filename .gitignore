@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------
+#  Exploradores del Museo — ignorados a nivel de todo el proyecto
+#  (la app Flutter tiene ademas su propio .gitignore en app/)
+# ---------------------------------------------------------------
+
+# Dependencias de Node (backend y panel)
+node_modules/
+
+# Variables de entorno: NUNCA se versionan.
+# Contienen las credenciales de Supabase y el secreto de JWT.
+# El archivo .env.example si se versiona, como plantilla sin valores reales.
+.env
+.env.*
+!.env.example
+
+# Compilados y salidas de build
+dist/
+build/
+*.log
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Windows / macOS
+Thumbs.db
+desktop.ini
+.DS_Store

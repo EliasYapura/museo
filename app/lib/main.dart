@@ -613,7 +613,7 @@ class IconoPainter extends CustomPainter {
     const rMax = 30.0;
     const pasos = 200;
 
-    final tMax = vueltas * 2 * math.pi;
+    const tMax = vueltas * 2 * math.pi;
     final r0 = rMax / math.exp(k * tMax); // normaliza el radio final
 
     final path = Path();

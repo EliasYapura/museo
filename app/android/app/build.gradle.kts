@@ -7,7 +7,9 @@ plugins {
 android {
     namespace = "com.example.flutter_application_1"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Fijado a la version instalada en esta maquina. Por defecto Flutter pide
+    // la 28.2.13676358, que no esta disponible y falla al descargarse.
+    ndkVersion = "30.0.16248370"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
