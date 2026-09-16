@@ -12,7 +12,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
-  const destino = ubicacion.state?.desde ?? '/misiones/nueva'
+  const destino = ubicacion.state?.desde ?? '/misiones'
 
   // Con sesion activa no tiene sentido mostrar el login.
   if (usuario) return <Navigate to={destino} replace />

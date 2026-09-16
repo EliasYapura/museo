@@ -30,6 +30,11 @@ export default function Marco() {
           </div>
         </div>
         <nav className="mx-auto flex max-w-5xl gap-2 px-6 pb-3">
+          {/* end: sin esto, "Misiones" tambien se marcaria activo en /misiones/nueva,
+              porque NavLink compara el comienzo de la direccion. */}
+          <NavLink to="/misiones" end className={estiloEnlace}>
+            Misiones
+          </NavLink>
           <NavLink to="/misiones/nueva" className={estiloEnlace}>
             Nueva misión
           </NavLink>

@@ -17,6 +17,19 @@ const ERRORES_DE_DATOS = {
   '22001': 'Algún texto es demasiado largo', // string_data_right_truncation
 };
 
+// GET /misiones — lista las misiones para el panel. Solo administradores.
+// Las archivadas no se muestran (baja logica, ADM07). Primero las modificadas
+// mas recientemente, que suelen ser en las que se esta trabajando.
+misionesRouter.get('/', verificarToken, requerirRol('administrador'), async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, nombre, duracion_estimada, dificultad, activa, creada_en, actualizada_en
+     FROM misiones
+     WHERE archivada = FALSE
+     ORDER BY actualizada_en DESC, id DESC`
+  );
+  return res.json({ misiones: rows });
+});
+
 // POST /misiones — crea una mision. Solo administradores.
 misionesRouter.post('/', verificarToken, requerirRol('administrador'), async (req, res) => {
   const { valores, errores } = validarMision(req.body ?? {});
