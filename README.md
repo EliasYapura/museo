@@ -70,6 +70,7 @@ curl http://localhost:3000/health
 | POST | `/auth/registro` | público | Crea una cuenta de visitante |
 | POST | `/auth/login` | público | Devuelve un JWT válido por 8 horas |
 | GET | `/auth/perfil` | con token | Datos del usuario autenticado |
+| POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
 
 Las rutas con token esperan el header `Authorization: Bearer <token>`.
 

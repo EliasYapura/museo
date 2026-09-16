@@ -21,4 +21,6 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpira: process.env.JWT_EXPIRA || '8h',
+  // Origen del panel autorizado por CORS. En produccion, la URL de Vercel.
+  panelOrigin: process.env.PANEL_ORIGIN || 'http://localhost:5173',
 };
