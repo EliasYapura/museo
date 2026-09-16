@@ -72,6 +72,8 @@ curl http://localhost:3000/health
 | GET | `/auth/perfil` | con token | Datos del usuario autenticado |
 | GET | `/misiones` | administrador | Lista las misiones no archivadas |
 | POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
+| GET | `/misiones/:id` | administrador | Datos de una misión |
+| PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
 
 Las rutas con token esperan el header `Authorization: Bearer <token>`.
 

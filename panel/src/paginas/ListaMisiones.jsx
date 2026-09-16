@@ -64,6 +64,9 @@ export default function ListaMisiones() {
                 <th scope="col" className="px-4 py-3 font-medium">Duración</th>
                 <th scope="col" className="px-4 py-3 font-medium">Estado</th>
                 <th scope="col" className="px-4 py-3 font-medium">Última modificación</th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -82,6 +85,17 @@ export default function ListaMisiones() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-stone-600">
                     {formatearFecha(mision.actualizada_en)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {/* aria-label: un lector de pantalla leeria "Editar" en todas
+                        las filas sin decir cual mision; asi dice el nombre. */}
+                    <Link
+                      to={`/misiones/${mision.id}/editar`}
+                      aria-label={`Editar ${mision.nombre}`}
+                      className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-100"
+                    >
+                      Editar
+                    </Link>
                   </td>
                 </tr>
               ))}
