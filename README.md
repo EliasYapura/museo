@@ -29,7 +29,7 @@ museo/
 ├── app/          App Flutter del visitante
 ├── backend/      API REST en Node + Express
 ├── docs/         Esquema de base de datos, DER, backlog y plan de pruebas
-└── panel/        Panel de administración (pendiente)
+└── panel/        Panel de administración en React + Vite + Tailwind
 ```
 
 ## Requisitos
@@ -79,6 +79,17 @@ registra la cuenta y se la promueve en la base:
 ```sql
 UPDATE usuarios SET rol = 'administrador' WHERE email = 'persona@museo.org';
 ```
+
+### Panel de administración
+
+```bash
+cd panel
+cp .env.example .env    # dirección de la API
+npm install
+npm run dev
+```
+
+Queda disponible en `http://localhost:5173`. Necesita la API levantada.
 
 ### App del visitante
 
