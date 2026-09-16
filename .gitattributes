@@ -1,2 +1,17 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Binarios: nunca normalizar saltos de linea.
+# La deteccion automatica de "* text=auto" mira solo el principio del archivo
+# y puede equivocarse. Con un PDF eso agrega bytes al clonar y lo corrompe.
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.ttf  binary
+*.otf  binary
+*.woff  binary
+*.woff2 binary
+*.keystore binary
+*.jar  binary
