@@ -35,7 +35,7 @@ museo/
 ## Requisitos
 
 - Flutter 3.x y el SDK de Android
-- Node.js 20 o superior
+- Node.js 22.9 o superior
 - Una cuenta de Supabase con un proyecto PostgreSQL
 
 ## Cómo levantar el proyecto
@@ -60,6 +60,24 @@ Queda escuchando en `http://localhost:3000`. Para verificar que está viva:
 
 ```bash
 curl http://localhost:3000/health
+```
+
+#### Endpoints
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/health` | público | Estado de la API |
+| POST | `/auth/registro` | público | Crea una cuenta de visitante |
+| POST | `/auth/login` | público | Devuelve un JWT válido por 8 horas |
+| GET | `/auth/perfil` | con token | Datos del usuario autenticado |
+
+Las rutas con token esperan el header `Authorization: Bearer <token>`.
+
+El registro siempre crea visitantes. Para dar de alta un administrador, se
+registra la cuenta y se la promueve en la base:
+
+```sql
+UPDATE usuarios SET rol = 'administrador' WHERE email = 'persona@museo.org';
 ```
 
 ### App del visitante
