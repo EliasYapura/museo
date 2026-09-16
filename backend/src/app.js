@@ -1,9 +1,17 @@
+import cors from 'cors';
 import express from 'express';
+import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
+import { misionesRouter } from './routes/misiones.js';
 
 // La app se configura aca y se arranca en index.js. Asi se puede importar
 // la app completa sin abrir un puerto, por ejemplo para probarla.
 export const app = express();
+
+// El navegador bloquea por defecto que una pagina llame a una API de otro
+// origen (el panel corre en otro puerto o dominio). CORS le indica que el
+// panel esta autorizado. Solo se habilita ese origen, no cualquiera.
+app.use(cors({ origin: config.panelOrigin }));
 
 // Permite recibir cuerpos JSON en las peticiones.
 app.use(express.json());
@@ -19,6 +27,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/misiones', misionesRouter);
 
 // Cualquier ruta que no coincidio con las anteriores.
 app.use((req, res) => {

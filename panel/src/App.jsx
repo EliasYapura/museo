@@ -1,16 +1,27 @@
-// Pantalla base del panel. En ADM01 se reemplaza por el ruteo con login.
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import Marco from './componentes/Marco.jsx'
+import RutaProtegida from './componentes/RutaProtegida.jsx'
+import Login from './paginas/Login.jsx'
+import NuevaMision from './paginas/NuevaMision.jsx'
+import { SesionProvider } from './sesion/SesionProvider.jsx'
+
 export default function App() {
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <p className="text-sm text-stone-500">Exploradores del Museo</p>
-          <h1 className="text-xl font-semibold">Panel de administración</h1>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <p className="text-stone-600">El panel está listo para empezar a cargar contenido.</p>
-      </main>
-    </div>
+    <BrowserRouter>
+      <SesionProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+
+          {/* Todo lo que esta aca adentro exige sesion de administrador. */}
+          <Route element={<RutaProtegida />}>
+            <Route element={<Marco />}>
+              <Route path="/misiones/nueva" element={<NuevaMision />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/misiones/nueva" replace />} />
+        </Routes>
+      </SesionProvider>
+    </BrowserRouter>
   )
 }
