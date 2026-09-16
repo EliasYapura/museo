@@ -5,9 +5,12 @@ import { validarMision } from '../validaciones/mision.js';
 
 export const misionesRouter = Router();
 
-// Codigos de error de PostgreSQL que indican datos invalidos. La validacion de
-// arriba deberia atajarlos antes; esto es la ultima red por si una regla de la
-// base y una de la API llegaran a diferir. Sin esta traduccion llegarian al
+// Todas las rutas de misiones son solo para administradores.
+misionesRouter.use(verificarToken, requerirRol('administrador'));
+
+// Codigos de error de PostgreSQL que indican datos invalidos. La validacion
+// deberia atajarlos antes; esto es la ultima red por si una regla de la base
+// y una de la API llegaran a diferir. Sin esta traduccion llegarian al
 // manejador general como error 500, que significa "fallo el servidor".
 const ERRORES_DE_DATOS = {
   '23502': 'Falta un dato obligatorio', // not_null_violation
@@ -17,10 +20,26 @@ const ERRORES_DE_DATOS = {
   '22001': 'Algún texto es demasiado largo', // string_data_right_truncation
 };
 
-// GET /misiones — lista las misiones para el panel. Solo administradores.
+function responderSiEsErrorDeDatos(err, res) {
+  if (!ERRORES_DE_DATOS[err.code]) return false;
+  res.status(400).json({ error: ERRORES_DE_DATOS[err.code] });
+  return true;
+}
+
+// Columnas que se devuelven al consultar, crear o editar una mision.
+const COLUMNAS = `id, nombre, descripcion, duracion_estimada, imagen_url, dificultad,
+                  activa, creada_por, creada_en, actualizada_en`;
+
+// Un id de la URL tiene que ser un entero positivo. Se limita a 15 digitos:
+// con mas, Number() pierde precision y PostgreSQL rechazaria el valor.
+// Un id imposible se responde como "no encontrada", igual que uno inexistente.
+const esIdValido = (texto) => /^[1-9]\d{0,14}$/.test(texto);
+const NO_ENCONTRADA = { error: 'La misión no existe' };
+
+// GET /misiones — lista las misiones para el panel.
 // Las archivadas no se muestran (baja logica, ADM07). Primero las modificadas
 // mas recientemente, que suelen ser en las que se esta trabajando.
-misionesRouter.get('/', verificarToken, requerirRol('administrador'), async (req, res) => {
+misionesRouter.get('/', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, nombre, duracion_estimada, dificultad, activa, creada_en, actualizada_en
      FROM misiones
@@ -30,8 +49,20 @@ misionesRouter.get('/', verificarToken, requerirRol('administrador'), async (req
   return res.json({ misiones: rows });
 });
 
-// POST /misiones — crea una mision. Solo administradores.
-misionesRouter.post('/', verificarToken, requerirRol('administrador'), async (req, res) => {
+// GET /misiones/:id — datos de una mision, para precargar la edicion (ADM05).
+misionesRouter.get('/:id', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNAS} FROM misiones WHERE id = $1 AND archivada = FALSE`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
+  return res.json({ mision: rows[0] });
+});
+
+// POST /misiones — crea una mision (ADM01, ADM02).
+misionesRouter.post('/', async (req, res) => {
   const { valores, errores } = validarMision(req.body ?? {});
   if (Object.keys(errores).length > 0) {
     return res.status(400).json({ error: 'Datos inválidos', errores });
@@ -47,15 +78,58 @@ misionesRouter.post('/', verificarToken, requerirRol('administrador'), async (re
     const { rows } = await pool.query(
       `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, creada_por)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, nombre, descripcion, duracion_estimada, imagen_url,
-                 dificultad, activa, creada_por, creada_en, actualizada_en`,
+       RETURNING ${COLUMNAS}`,
       [valores.nombre, valores.descripcion, valores.duracion_estimada, valores.imagen_url, req.usuario.id]
     );
     return res.status(201).json({ mision: rows[0] });
   } catch (err) {
-    if (ERRORES_DE_DATOS[err.code]) {
-      return res.status(400).json({ error: ERRORES_DE_DATOS[err.code] });
-    }
+    if (responderSiEsErrorDeDatos(err, res)) return;
+    throw err;
+  }
+});
+
+// PUT /misiones/:id — modifica una mision existente (ADM05).
+misionesRouter.put('/:id', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  // Mismas reglas que al crear: vienen del mismo modulo.
+  const { valores, errores } = validarMision(req.body ?? {});
+  if (Object.keys(errores).length > 0) {
+    return res.status(400).json({ error: 'Datos inválidos', errores });
+  }
+
+  try {
+    // Solo se modifican los datos de la mision. activa, creada_por y los
+    // desafios asociados no se tocan: el UPDATE es sobre esta fila de la tabla
+    // misiones y nada mas, asi que los desafios quedan exactamente como estaban.
+    //
+    // La condicion IS DISTINCT FROM hace que la fila solo se actualice si algun
+    // dato cambio de verdad. Sin ella, guardar sin cambios dispararia el
+    // trigger y la "ultima modificacion" mostraria una fecha en la que no se
+    // modifico nada. Se usa IS DISTINCT FROM y no <> porque compara bien los
+    // NULL: NULL <> NULL da NULL, no FALSE.
+    const { rows } = await pool.query(
+      `UPDATE misiones
+       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5
+       WHERE id = $1 AND archivada = FALSE
+         AND (nombre IS DISTINCT FROM $2
+              OR descripcion IS DISTINCT FROM $3
+              OR duracion_estimada IS DISTINCT FROM $4
+              OR imagen_url IS DISTINCT FROM $5)
+       RETURNING ${COLUMNAS}`,
+      [req.params.id, valores.nombre, valores.descripcion, valores.duracion_estimada, valores.imagen_url]
+    );
+    if (rows[0]) return res.json({ mision: rows[0], modificada: true });
+
+    // Ninguna fila actualizada: o la mision no existe, o no habia cambios.
+    const existente = await pool.query(
+      `SELECT ${COLUMNAS} FROM misiones WHERE id = $1 AND archivada = FALSE`,
+      [req.params.id]
+    );
+    if (!existente.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+    return res.json({ mision: existente.rows[0], modificada: false });
+  } catch (err) {
+    if (responderSiEsErrorDeDatos(err, res)) return;
     throw err;
   }
 });
