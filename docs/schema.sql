@@ -314,3 +314,40 @@ LEFT JOIN (
     GROUP BY pm2.mision_id
 ) p ON p.mision_id = m.id
 GROUP BY m.id, m.nombre, p.pistas_usadas;
+
+-- ---------------------------------------------------------------------
+-- Seguridad: cerrar el acceso publico a traves de la API REST
+-- ---------------------------------------------------------------------
+-- Supabase expone automaticamente el esquema public como API REST. Sin Row
+-- Level Security, cualquiera con la clave publicable (que viaja dentro de la
+-- app y por lo tanto es publica) puede leer y escribir todas las tablas.
+-- Verificado: antes de esto, un GET a /rest/v1/usuarios devolvia los hashes
+-- de contrasena desde internet y un POST insertaba filas sin autenticacion.
+--
+-- Se activa RLS SIN crear politicas. Eso bloquea por completo el acceso desde
+-- la API REST. El backend Express no se ve afectado porque conecta con la
+-- cadena de conexion de PostgreSQL, y el dueno de las tablas ignora RLS.
+-- El control de acceso vive en la API (JWT + roles), no en la base.
+
+ALTER TABLE usuarios           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE salas              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categorias         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE objetos            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE misiones           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE desafios           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pistas             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE insignias          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recompensas        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE progreso_misiones  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE progreso_desafios  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios_insignias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE eventos            ENABLE ROW LEVEL SECURITY;
+
+-- La vista corria con los permisos de quien la creo, salteando el RLS de las
+-- tablas que consulta. Con security_invoker usa los permisos de quien consulta.
+ALTER VIEW v_estadisticas_misiones SET (security_invoker = on);
+
+-- Sin search_path fijo, un atacante puede anteponer un esquema propio para que
+-- la funcion resuelva NOW() a codigo suyo. Con search_path vacio solo resuelve
+-- contra pg_catalog, que siempre esta disponible.
+ALTER FUNCTION fn_actualizar_timestamp() SET search_path = '';
