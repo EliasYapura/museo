@@ -2,7 +2,14 @@
 // maneja todos como texto. Separado del componente por el mismo motivo que
 // camposMision.js (Fast Refresh).
 
-export const CAMPOS_VACIOS = { nombre: '', sala_id: '', dato_clave: '', descripcion: '', imagen_url: '' }
+export const CAMPOS_VACIOS = {
+  nombre: '',
+  sala_id: '',
+  dato_clave: '',
+  descripcion: '',
+  imagen_url: '',
+  tipo_identificador: 'qr', // el mismo valor por defecto que la base
+}
 
 // descripcion e imagen_url pueden venir como null (sin dato): el campo del
 // formulario los muestra vacios.
@@ -12,4 +19,5 @@ export const camposDesdeObjeto = (objeto) => ({
   dato_clave: objeto.dato_clave,
   descripcion: objeto.descripcion ?? '',
   imagen_url: objeto.imagen_url ?? '',
+  tipo_identificador: objeto.tipo_identificador,
 })

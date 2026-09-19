@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+/* Al imprimir desde la pantalla de un objeto (ADM17) solo interesa la
+   etiqueta que se pega junto a la pieza, no el panel entero. Se oculta todo
+   y se vuelve a mostrar solo ese bloque, llevado al inicio de la hoja.
+   Se usa visibility y no display para no romper el armado de la pagina. */
+@media print {
+  body:has(.etiqueta-imprimible) * {
+    visibility: hidden;
+  }
+
+  body:has(.etiqueta-imprimible) .etiqueta-imprimible,
+  body:has(.etiqueta-imprimible) .etiqueta-imprimible * {
+    visibility: visible;
+  }
+
+  .etiqueta-imprimible {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}

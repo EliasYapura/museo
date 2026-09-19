@@ -84,8 +84,9 @@ objetosRouter.post('/', async (req, res) => {
       // el cuerpo. El WITH permite devolver el objeto junto con su sala.
       const { rows } = await pool.query(
         `WITH nuevo AS (
-           INSERT INTO objetos (sala_id, nombre, dato_clave, descripcion, imagen_url, codigo)
-           VALUES ($1, $2, $3, $4, $5, $6)
+           INSERT INTO objetos (sala_id, nombre, dato_clave, descripcion, imagen_url,
+                                tipo_identificador, codigo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *
          )
          SELECT ${COLUMNAS} FROM nuevo o JOIN salas s ON s.id = o.sala_id`,
@@ -95,6 +96,7 @@ objetosRouter.post('/', async (req, res) => {
           valores.dato_clave,
           valores.descripcion,
           valores.imagen_url,
+          valores.tipo_identificador,
           generarCodigo(),
         ]
       );
@@ -109,8 +111,9 @@ objetosRouter.post('/', async (req, res) => {
 });
 
 // PUT /objetos/:id — modifica nombre, sala y dato clave (ADM15), descripcion
-// e imagen (ADM16) de un objeto.
-// El codigo no se toca: si cambiara, el QR ya impreso dejaria de servir.
+// e imagen (ADM16) y el tipo de identificador (ADM17) de un objeto.
+// El codigo no se toca: si cambiara, el QR ya impreso dejaria de servir. Para
+// cambiarlo a proposito esta PATCH /objetos/:id/codigo.
 objetosRouter.put('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
 
@@ -125,13 +128,15 @@ objetosRouter.put('/:id', async (req, res) => {
     const { rows } = await pool.query(
       `WITH cambiado AS (
          UPDATE objetos
-         SET sala_id = $2, nombre = $3, dato_clave = $4, descripcion = $5, imagen_url = $6
+         SET sala_id = $2, nombre = $3, dato_clave = $4, descripcion = $5,
+             imagen_url = $6, tipo_identificador = $7
          WHERE id = $1
            AND (sala_id IS DISTINCT FROM $2
                 OR nombre IS DISTINCT FROM $3
                 OR dato_clave IS DISTINCT FROM $4
                 OR descripcion IS DISTINCT FROM $5
-                OR imagen_url IS DISTINCT FROM $6)
+                OR imagen_url IS DISTINCT FROM $6
+                OR tipo_identificador IS DISTINCT FROM $7)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
@@ -142,6 +147,7 @@ objetosRouter.put('/:id', async (req, res) => {
         valores.dato_clave,
         valores.descripcion,
         valores.imagen_url,
+        valores.tipo_identificador,
       ]
     );
     if (rows[0]) return res.json({ objeto: rows[0], modificado: true });
@@ -157,6 +163,32 @@ objetosRouter.put('/:id', async (req, res) => {
     if (esSalaInexistente(err)) return res.status(400).json(SALA_INEXISTENTE);
     if (responderSiEsErrorDeDatos(err, res)) return;
     throw err;
+  }
+});
+
+// PATCH /objetos/:id/codigo — genera un codigo nuevo para el objeto (ADM17).
+//
+// Es una ruta aparte y no un campo del formulario para que el codigo no se
+// pueda cambiar sin querer al guardar los datos: cambiarlo deja inservible la
+// etiqueta QR o NFC que ya esta puesta junto a la pieza.
+objetosRouter.patch('/:id/codigo', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
+
+  for (let intento = 1; intento <= INTENTOS_DE_CODIGO; intento++) {
+    try {
+      const { rows } = await pool.query(
+        `WITH cambiado AS (
+           UPDATE objetos SET codigo = $2 WHERE id = $1 RETURNING *
+         )
+         SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
+        [req.params.id, generarCodigo()]
+      );
+      if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);
+      return res.json({ objeto: rows[0] });
+    } catch (err) {
+      if (esCodigoRepetido(err) && intento < INTENTOS_DE_CODIGO) continue;
+      throw err;
+    }
   }
 });
 

@@ -1,5 +1,5 @@
-// Reglas de los datos de un objeto del museo (ADM15, ADM16). Crear y editar
-// usan este mismo modulo, igual que las misiones.
+// Reglas de los datos de un objeto del museo (ADM15, ADM16, ADM17). Crear y
+// editar usan este mismo modulo, igual que las misiones.
 //
 // Devuelve { valores, errores }, con el mismo formato que validarMision.
 // La existencia de la sala no se revisa aca: la controla la base con la
@@ -41,6 +41,19 @@ function validarSala(valor) {
   return { valor };
 }
 
+// Tipo de identificador que lleva la pieza (ADM17). Son los dos valores del
+// enum tipo_identificador de la base. Si no viene, queda en qr, el valor por
+// defecto de la columna.
+export const TIPOS_IDENTIFICADOR = ['qr', 'nfc'];
+
+function validarTipoIdentificador(valor) {
+  if (valor === undefined || valor === null || valor === '') return { valor: 'qr' };
+  if (!TIPOS_IDENTIFICADOR.includes(valor)) {
+    return { error: 'El identificador debe ser QR o NFC' };
+  }
+  return { valor };
+}
+
 export function validarObjeto(datos) {
   const resultados = {
     nombre: validarTextoObligatorio(datos.nombre, 'El nombre es obligatorio'),
@@ -48,6 +61,7 @@ export function validarObjeto(datos) {
     dato_clave: validarTextoObligatorio(datos.dato_clave, 'El dato clave es obligatorio'),
     descripcion: validarTextoOpcional(datos.descripcion, 'La descripción debe ser un texto'),
     imagen_url: validarImagen(datos.imagen_url),
+    tipo_identificador: validarTipoIdentificador(datos.tipo_identificador),
   };
 
   if (resultados.nombre.valor !== undefined && largo(resultados.nombre.valor) > LARGO_MAXIMO_NOMBRE) {

@@ -82,6 +82,7 @@ export default function ListaObjetos() {
                 <th scope="col" className="px-4 py-3 font-medium">Nombre</th>
                 <th scope="col" className="px-4 py-3 font-medium">Sala</th>
                 <th scope="col" className="px-4 py-3 font-medium">Código</th>
+                <th scope="col" className="px-4 py-3 font-medium">Identificador</th>
                 <th scope="col" className="px-4 py-3 font-medium">Estado</th>
                 <th scope="col" className="px-4 py-3 font-medium">
                   <span className="sr-only">Acciones</span>
@@ -94,6 +95,7 @@ export default function ListaObjetos() {
                   <td className="px-4 py-3 font-medium">{objeto.nombre}</td>
                   <td className="px-4 py-3">{objeto.sala}</td>
                   <td className="px-4 py-3 font-mono whitespace-nowrap">{objeto.codigo}</td>
+                  <td className="px-4 py-3">{objeto.tipo_identificador === 'qr' ? 'QR' : 'NFC'}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${

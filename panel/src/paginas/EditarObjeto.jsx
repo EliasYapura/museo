@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { pedir } from '../api.js'
 import { camposDesdeObjeto } from '../camposObjeto.js'
 import FormularioObjeto from '../componentes/FormularioObjeto.jsx'
+import IdentificadorObjeto from '../componentes/IdentificadorObjeto.jsx'
 import VistaPreviaImagen from '../componentes/VistaPreviaImagen.jsx'
 import { formatearFecha } from '../fechas.js'
 import { useSesion } from '../sesion/contexto.js'
@@ -35,6 +36,17 @@ function EditorDeObjeto({ id }) {
     }
   }, [id, token, cerrarSesion])
 
+  async function regenerarCodigo() {
+    try {
+      const { objeto: actualizado } = await pedir(`/objetos/${id}/codigo`, { metodo: 'PATCH', token })
+      setObjeto(actualizado)
+      setResultado('codigo-nuevo')
+    } catch (err) {
+      if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
+      else throw err
+    }
+  }
+
   async function guardar(cuerpo) {
     const respuesta = await pedir(`/objetos/${id}`, { metodo: 'PUT', token, cuerpo })
     setObjeto(respuesta.objeto)
@@ -66,11 +78,13 @@ function EditorDeObjeto({ id }) {
       {volver}
       <h1 className="mt-2 text-2xl font-semibold">Editar objeto</h1>
       <p className="mb-6 text-sm text-stone-600">
-        Código <span className="font-mono text-stone-900">{objeto.codigo}</span> · Registrado el{' '}
-        {formatearFecha(objeto.creado_en)} · {objeto.activo ? 'Activo' : 'Dado de baja'}
+        Registrado el {formatearFecha(objeto.creado_en)} ·{' '}
+        {objeto.activo ? 'Activo' : 'Dado de baja'}
         <br />
-        El código no se modifica al guardar: es el que identifica a la pieza.
+        El código no se modifica al guardar los datos.
       </p>
+
+      <IdentificadorObjeto objeto={objeto} alRegenerar={regenerarCodigo} />
 
       {objeto.imagen_url && (
         <div className="mb-6">
@@ -81,6 +95,11 @@ function EditorDeObjeto({ id }) {
       {resultado === 'guardado' && (
         <p role="status" className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 font-medium text-green-900">
           Cambios guardados.
+        </p>
+      )}
+      {resultado === 'codigo-nuevo' && (
+        <p role="status" className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 font-medium text-green-900">
+          Código nuevo generado. Reemplazá la etiqueta que está junto a la pieza.
         </p>
       )}
       {resultado === 'sin-cambios' && (
