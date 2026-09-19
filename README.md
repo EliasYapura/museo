@@ -74,6 +74,11 @@ curl http://localhost:3000/health
 | POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
 | GET | `/misiones/:id` | administrador | Datos de una misión |
 | PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
+| GET | `/misiones/:id/desafios` | administrador | Lista los desafíos de una misión, en orden |
+| POST | `/misiones/:id/desafios` | administrador | Agrega un desafío al final de la misión |
+| GET | `/desafios/:id` | administrador | Datos de un desafío |
+| PUT | `/desafios/:id` | administrador | Modifica enunciado, tipo y objeto asociado |
+| DELETE | `/desafios/:id` | administrador | Borra un desafío y sus pistas |
 | GET | `/salas` | administrador | Lista las salas en el orden del recorrido |
 | GET | `/objetos` | administrador | Lista los objetos, activos y dados de baja |
 | POST | `/objetos` | administrador | Registra un objeto (descripción e imagen opcionales, identificador QR o NFC) y le genera un código único |

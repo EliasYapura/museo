@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import Marco from './componentes/Marco.jsx'
 import RutaProtegida from './componentes/RutaProtegida.jsx'
+import DesafiosDeMision from './paginas/DesafiosDeMision.jsx'
 import EditarMision from './paginas/EditarMision.jsx'
 import EditarObjeto from './paginas/EditarObjeto.jsx'
 import ListaMisiones from './paginas/ListaMisiones.jsx'
@@ -23,6 +24,7 @@ export default function App() {
               <Route path="/misiones" element={<ListaMisiones />} />
               <Route path="/misiones/nueva" element={<NuevaMision />} />
               <Route path="/misiones/:id/editar" element={<EditarMision />} />
+              <Route path="/misiones/:id/desafios" element={<DesafiosDeMision />} />
               <Route path="/objetos" element={<ListaObjetos />} />
               <Route path="/objetos/nuevo" element={<NuevoObjeto />} />
               <Route path="/objetos/:id/editar" element={<EditarObjeto />} />

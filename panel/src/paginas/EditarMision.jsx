@@ -69,12 +69,19 @@ function EditorDeMision({ id }) {
     <div className="max-w-2xl">
       {volver}
       <h1 className="mt-2 text-2xl font-semibold">Editar misión</h1>
-      <p className="mb-6 text-sm text-stone-600">
+      <p className="mb-4 text-sm text-stone-600">
         Creada el {formatearFecha(mision.creada_en)} · Última modificación:{' '}
         {formatearFecha(mision.actualizada_en)}
         <br />
         Los desafíos asociados a la misión no se modifican al guardar estos datos.
       </p>
+
+      <Link
+        to={`/misiones/${id}/desafios`}
+        className="mb-6 inline-block rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-100"
+      >
+        Desafíos de la misión
+      </Link>
 
       {resultado === 'guardada' && (
         <p role="status" className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 font-medium text-green-900">
