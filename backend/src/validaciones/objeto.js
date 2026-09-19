@@ -1,9 +1,11 @@
-// Reglas de los datos de un objeto del museo (ADM15). Crear y editar usan
-// este mismo modulo, igual que las misiones.
+// Reglas de los datos de un objeto del museo (ADM15, ADM16). Crear y editar
+// usan este mismo modulo, igual que las misiones.
 //
 // Devuelve { valores, errores }, con el mismo formato que validarMision.
 // La existencia de la sala no se revisa aca: la controla la base con la
 // clave foranea, y la ruta traduce ese error a un mensaje en el campo sala.
+
+import { validarImagen } from './imagen.js';
 
 const LARGO_MAXIMO_NOMBRE = 200; // igual que la columna VARCHAR(200)
 
@@ -15,6 +17,15 @@ function validarTextoObligatorio(valor, mensajeObligatorio) {
     return { error: mensajeObligatorio };
   }
   return { valor: valor.trim() };
+}
+
+// Texto opcional (ADM16): ausente, vacio o de solo espacios se guarda como
+// NULL, asi "sin descripcion" se representa siempre igual en la base.
+function validarTextoOpcional(valor, mensajeTipo) {
+  if (valor === undefined || valor === null) return { valor: null };
+  if (typeof valor !== 'string') return { error: mensajeTipo };
+  const texto = valor.trim();
+  return { valor: texto === '' ? null : texto };
 }
 
 // La sala llega como el id elegido en el selector. Tiene que ser un numero
@@ -35,6 +46,8 @@ export function validarObjeto(datos) {
     nombre: validarTextoObligatorio(datos.nombre, 'El nombre es obligatorio'),
     sala_id: validarSala(datos.sala_id),
     dato_clave: validarTextoObligatorio(datos.dato_clave, 'El dato clave es obligatorio'),
+    descripcion: validarTextoOpcional(datos.descripcion, 'La descripción debe ser un texto'),
+    imagen_url: validarImagen(datos.imagen_url),
   };
 
   if (resultados.nombre.valor !== undefined && largo(resultados.nombre.valor) > LARGO_MAXIMO_NOMBRE) {

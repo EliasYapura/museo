@@ -5,14 +5,14 @@ import { validarObjeto } from '../validaciones/objeto.js'
 import Campo from './Campo.jsx'
 
 // Formulario de datos de un objeto, compartido por el alta y la edicion
-// (ADM15). Funciona igual que FormularioMision y recibe las mismas props:
+// (ADM15, ADM16). Funciona igual que FormularioMision y recibe las mismas props:
 // valoresIniciales, alGuardar, alIntentarGuardar, textoBoton, textoEnviando
 // y reiniciarAlGuardar.
 //
 // Carga por su cuenta la lista de salas para el selector, porque la
 // necesitan las dos pantallas que lo usan.
 
-const ORDEN_CAMPOS = ['nombre', 'sala_id', 'dato_clave']
+const ORDEN_CAMPOS = ['nombre', 'sala_id', 'dato_clave', 'descripcion', 'imagen_url']
 const AVISO_ERRORES = 'Revisá los campos marcados.'
 
 export default function FormularioObjeto({
@@ -95,14 +95,14 @@ export default function FormularioObjeto({
     }
   }
 
-  function propsDe(id, { ayuda = false } = {}) {
+  function propsDe(id, { ayuda = false, obligatorio = true } = {}) {
     const describe = [ayuda && `${id}-ayuda`, errores[id] && `${id}-error`].filter(Boolean).join(' ')
     return {
       id,
       name: id,
       value: campos[id],
       onChange: cambiar,
-      'aria-required': 'true',
+      'aria-required': obligatorio ? 'true' : undefined,
       'aria-invalid': errores[id] ? true : undefined,
       'aria-describedby': describe || undefined,
       className: `w-full rounded-md border px-3 py-2 focus:outline-none ${
@@ -153,6 +153,30 @@ export default function FormularioObjeto({
           error={errores.dato_clave}
         >
           <textarea {...propsDe('dato_clave', { ayuda: true })} rows={3} />
+        </Campo>
+
+        <Campo
+          id="descripcion"
+          etiqueta="Descripción"
+          opcional
+          ayuda="Información ampliada sobre la pieza: origen, época, historia."
+          error={errores.descripcion}
+        >
+          <textarea {...propsDe('descripcion', { ayuda: true, obligatorio: false })} rows={5} />
+        </Campo>
+
+        <Campo
+          id="imagen_url"
+          etiqueta="Imagen"
+          opcional
+          ayuda="Dirección de una imagen ya publicada en internet."
+          error={errores.imagen_url}
+        >
+          <input
+            {...propsDe('imagen_url', { ayuda: true, obligatorio: false })}
+            type="url"
+            placeholder="https://…"
+          />
         </Campo>
 
         <button
