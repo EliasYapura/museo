@@ -5,13 +5,35 @@ import FormularioDesafio from '../componentes/FormularioDesafio.jsx'
 import { useSesion } from '../sesion/contexto.js'
 import { nombreDeTipo } from '../tiposDesafio.js'
 
-const CAMPOS_VACIOS = { enunciado: '', tipo: '', objeto_id: '' }
+const CAMPOS_VACIOS = {
+  enunciado: '',
+  tipo: '',
+  objeto_id: '',
+  opciones: ['', ''], // el minimo que pide una pregunta de opcion multiple
+  tolerancia: 'flexible',
+}
 
+// La configuracion que corresponde a otro tipo no viene: esos campos toman su
+// valor vacio, listos por si se cambia el tipo.
 const camposDesdeDesafio = (desafio) => ({
   enunciado: desafio.enunciado,
   tipo: desafio.tipo,
   objeto_id: desafio.objeto_id === null ? '' : String(desafio.objeto_id),
+  opciones: desafio.configuracion?.opciones ?? CAMPOS_VACIOS.opciones,
+  tolerancia: desafio.configuracion?.tolerancia ?? CAMPOS_VACIOS.tolerancia,
 })
+
+// Resumen de lo propio del tipo, para no tener que abrir cada desafio.
+function resumenDeConfiguracion(desafio) {
+  const { opciones, tolerancia } = desafio.configuracion ?? {}
+  if (desafio.tipo === 'pregunta_opcion_multiple' && opciones) {
+    return `${opciones.length} opciones`
+  }
+  if (desafio.tipo === 'respuesta_corta' && tolerancia) {
+    return tolerancia === 'exacta' ? 'comparación exacta' : 'comparación flexible'
+  }
+  return null
+}
 
 export default function DesafiosDeMision() {
   const { id } = useParams()
@@ -97,8 +119,8 @@ function DesafiosDe({ misionId }) {
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Desafíos{mision ? ` de “${mision.nombre}”` : ''}</h1>
       <p className="mb-6 text-sm text-stone-600">
-        Se resuelven en el orden en que aparecen. Los datos propios de cada tipo y la respuesta
-        correcta se cargan más adelante.
+        Se resuelven en el orden en que aparecen. Cada tipo pide sus propios datos; la respuesta
+        correcta se carga más adelante.
       </p>
 
       {error && (
@@ -130,8 +152,13 @@ function DesafiosDe({ misionId }) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-sm text-stone-500">
-                    {desafio.orden}. {nombreDeTipo(desafio.tipo)}
-                    {desafio.objeto ? ` · ${desafio.objeto}` : ' · sin objeto asociado'}
+                    {[
+                      `${desafio.orden}. ${nombreDeTipo(desafio.tipo)}`,
+                      desafio.objeto ?? 'sin objeto asociado',
+                      resumenDeConfiguracion(desafio),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                   <p className="font-medium">{desafio.enunciado}</p>
                 </div>

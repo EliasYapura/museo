@@ -99,7 +99,7 @@ UPDATE misiones SET mision_previa_id = 2 WHERE id = 3;
 INSERT INTO desafios (mision_id, objeto_id, orden, tipo, enunciado, configuracion, respuesta_correcta, puntos) VALUES
 (2, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-005'), 1, 'escaneo_objeto',
  'Encontrá el esqueleto del dinosaurio más grande del Museo y escaneá su código.',
- '{"codigo_esperado":"MLP-OBJ-005"}', NULL, 10),
+ '{}', NULL, 10),
 
 (2, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-005'), 2, 'pregunta_opcion_multiple',
  '¿Cuántos metros de largo mide el Diplodocus del Museo?',
@@ -108,15 +108,15 @@ INSERT INTO desafios (mision_id, objeto_id, orden, tipo, enunciado, configuracio
 
 (2, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-006'), 3, 'respuesta_corta',
  '¿En qué provincia se hallaron los restos del Antarctosaurus?',
- '{"tolerancia":"insensible_mayusculas"}', 'Río Negro', 10),
+ '{"tolerancia":"flexible"}', 'Río Negro', 10),
 
 (1, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-001'), 1, 'respuesta_corta',
  '¿En qué provincia halló Moreno el meteorito Capper?',
- '{"tolerancia":"insensible_mayusculas"}', 'Chubut', 10),
+ '{"tolerancia":"flexible"}', 'Chubut', 10),
 
 (1, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-002'), 2, 'busqueda_guiada',
  'Buscá la piedra que por dentro está tapizada de cristales violetas.',
- '{"codigo_esperado":"MLP-OBJ-002"}', NULL, 15);
+ '{}', NULL, 15);
 
 -- ---------- Pistas ----------
 INSERT INTO pistas (desafio_id, orden, texto, penalizacion) VALUES
