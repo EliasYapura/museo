@@ -6,6 +6,8 @@
 // - errores: un objeto campo -> mensaje. Vacio si todo esta bien.
 // Se informan todos los errores juntos, para no obligar a corregirlos de a uno.
 
+import { validarImagen } from './imagen.js';
+
 export const DURACION_MINIMA = 1;
 export const DURACION_MAXIMA = 240;
 const LARGO_MAXIMO_NOMBRE = 200; // igual que la columna VARCHAR(200)
@@ -34,26 +36,6 @@ function validarDuracion(valor) {
     return { error: `La duración debe estar entre ${DURACION_MINIMA} y ${DURACION_MAXIMA} minutos` };
   }
   return { valor };
-}
-
-// La imagen es opcional: ausente o vacia se guarda como NULL. Si viene, solo
-// se aceptan direcciones http o https. Un esquema como "javascript:" guardado
-// en la base podria ejecutar codigo en el navegador de quien abra la mision,
-// si algun dia se usa la direccion como enlace.
-function validarImagen(valor) {
-  if (valor === undefined || valor === null) return { valor: null };
-  if (typeof valor !== 'string') return { error: 'La imagen debe ser una dirección http o https' };
-
-  const texto = valor.trim();
-  if (texto === '') return { valor: null };
-
-  try {
-    const url = new URL(texto);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return { valor: texto };
-  } catch {
-    // No es una URL: cae al error de abajo.
-  }
-  return { error: 'La imagen debe ser una dirección http o https' };
 }
 
 export function validarMision(datos) {

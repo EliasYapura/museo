@@ -76,9 +76,9 @@ curl http://localhost:3000/health
 | PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
 | GET | `/salas` | administrador | Lista las salas en el orden del recorrido |
 | GET | `/objetos` | administrador | Lista los objetos, activos y dados de baja |
-| POST | `/objetos` | administrador | Registra un objeto y le genera un código único |
+| POST | `/objetos` | administrador | Registra un objeto (descripción e imagen opcionales) y le genera un código único |
 | GET | `/objetos/:id` | administrador | Datos de un objeto |
-| PUT | `/objetos/:id` | administrador | Modifica nombre, sala y dato clave (el código no cambia) |
+| PUT | `/objetos/:id` | administrador | Modifica nombre, sala, dato clave, descripción e imagen (el código no cambia) |
 | PATCH | `/objetos/:id/estado` | administrador | Da de baja (`{ "activo": false }`) o reactiva un objeto |
 
 Las rutas con token esperan el header `Authorization: Bearer <token>`.

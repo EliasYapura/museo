@@ -14,8 +14,8 @@ objetosRouter.use(verificarToken, requerirRol('administrador'));
 // Columnas que se devuelven de un objeto. Incluyen el nombre de la sala para
 // que el panel no tenga que buscarlo aparte. Las consultas llaman "o" a la
 // fila del objeto y "s" a su sala.
-const COLUMNAS = `o.id, o.nombre, o.dato_clave, o.codigo, o.tipo_identificador,
-                  o.activo, o.creado_en, o.sala_id, s.nombre AS sala`;
+const COLUMNAS = `o.id, o.nombre, o.dato_clave, o.descripcion, o.imagen_url, o.codigo,
+                  o.tipo_identificador, o.activo, o.creado_en, o.sala_id, s.nombre AS sala`;
 
 const NO_ENCONTRADO = { error: 'El objeto no existe' };
 const SALA_INEXISTENTE = { error: 'Datos inválidos', errores: { sala_id: 'La sala elegida no existe' } };
@@ -65,7 +65,8 @@ objetosRouter.get('/:id', async (req, res) => {
   return res.json({ objeto: rows[0] });
 });
 
-// POST /objetos — registra un objeto (ADM15).
+// POST /objetos — registra un objeto (ADM15), con su descripcion e imagen
+// opcionales (ADM16).
 objetosRouter.post('/', async (req, res) => {
   const { valores, errores } = validarObjeto(req.body ?? {});
   if (Object.keys(errores).length > 0) {
@@ -83,12 +84,19 @@ objetosRouter.post('/', async (req, res) => {
       // el cuerpo. El WITH permite devolver el objeto junto con su sala.
       const { rows } = await pool.query(
         `WITH nuevo AS (
-           INSERT INTO objetos (sala_id, nombre, dato_clave, codigo)
-           VALUES ($1, $2, $3, $4)
+           INSERT INTO objetos (sala_id, nombre, dato_clave, descripcion, imagen_url, codigo)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING *
          )
          SELECT ${COLUMNAS} FROM nuevo o JOIN salas s ON s.id = o.sala_id`,
-        [valores.sala_id, valores.nombre, valores.dato_clave, generarCodigo()]
+        [
+          valores.sala_id,
+          valores.nombre,
+          valores.dato_clave,
+          valores.descripcion,
+          valores.imagen_url,
+          generarCodigo(),
+        ]
       );
       return res.status(201).json({ objeto: rows[0] });
     } catch (err) {
@@ -100,7 +108,8 @@ objetosRouter.post('/', async (req, res) => {
   }
 });
 
-// PUT /objetos/:id — modifica nombre, sala y dato clave de un objeto (ADM15).
+// PUT /objetos/:id — modifica nombre, sala y dato clave (ADM15), descripcion
+// e imagen (ADM16) de un objeto.
 // El codigo no se toca: si cambiara, el QR ya impreso dejaria de servir.
 objetosRouter.put('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
@@ -116,15 +125,24 @@ objetosRouter.put('/:id', async (req, res) => {
     const { rows } = await pool.query(
       `WITH cambiado AS (
          UPDATE objetos
-         SET sala_id = $2, nombre = $3, dato_clave = $4
+         SET sala_id = $2, nombre = $3, dato_clave = $4, descripcion = $5, imagen_url = $6
          WHERE id = $1
            AND (sala_id IS DISTINCT FROM $2
                 OR nombre IS DISTINCT FROM $3
-                OR dato_clave IS DISTINCT FROM $4)
+                OR dato_clave IS DISTINCT FROM $4
+                OR descripcion IS DISTINCT FROM $5
+                OR imagen_url IS DISTINCT FROM $6)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
-      [req.params.id, valores.sala_id, valores.nombre, valores.dato_clave]
+      [
+        req.params.id,
+        valores.sala_id,
+        valores.nombre,
+        valores.dato_clave,
+        valores.descripcion,
+        valores.imagen_url,
+      ]
     );
     if (rows[0]) return res.json({ objeto: rows[0], modificado: true });
 

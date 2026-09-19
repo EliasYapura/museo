@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { pedir } from '../api.js'
 import { camposDesdeObjeto } from '../camposObjeto.js'
 import FormularioObjeto from '../componentes/FormularioObjeto.jsx'
+import VistaPreviaImagen from '../componentes/VistaPreviaImagen.jsx'
 import { formatearFecha } from '../fechas.js'
 import { useSesion } from '../sesion/contexto.js'
 
@@ -70,6 +71,12 @@ function EditorDeObjeto({ id }) {
         <br />
         El código no se modifica al guardar: es el que identifica a la pieza.
       </p>
+
+      {objeto.imagen_url && (
+        <div className="mb-6">
+          <VistaPreviaImagen key={objeto.imagen_url} url={objeto.imagen_url} descripcion={objeto.nombre} />
+        </div>
+      )}
 
       {resultado === 'guardado' && (
         <p role="status" className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 font-medium text-green-900">

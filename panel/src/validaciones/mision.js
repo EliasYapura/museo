@@ -6,6 +6,8 @@
 // existe solo para avisar al instante, sin esperar al servidor. Si se cambia
 // una regla, hay que cambiarla en los dos lugares.
 
+import { errorDeImagen } from './imagen.js'
+
 export const DURACION_MINIMA = 1
 export const DURACION_MAXIMA = 240
 const LARGO_MAXIMO_NOMBRE = 200
@@ -43,16 +45,8 @@ export function validarMision(campos, { duracionIlegible = false } = {}) {
   }
 
   const imagen = campos.imagen_url.trim()
-  if (imagen !== '') {
-    let valida = false
-    try {
-      const url = new URL(imagen)
-      valida = url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      valida = false
-    }
-    if (!valida) errores.imagen_url = 'La imagen debe ser una dirección http o https'
-  }
+  const errorImagen = errorDeImagen(imagen)
+  if (errorImagen) errores.imagen_url = errorImagen
 
   return {
     errores,

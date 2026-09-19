@@ -1,9 +1,11 @@
-// Reglas de los datos de un objeto, del lado del panel (ADM15).
+// Reglas de los datos de un objeto, del lado del panel (ADM15, ADM16).
 //
 // Son las mismas que aplica la API en backend/src/validaciones/objeto.js, con
 // los mismos mensajes. Igual que con las misiones, la copia de la API es la
 // que manda: esta existe solo para avisar al instante. Que la sala exista lo
 // controla la API; el panel solo ofrece las salas que ella devolvio.
+
+import { errorDeImagen } from './imagen.js'
 
 const LARGO_MAXIMO_NOMBRE = 200
 
@@ -26,8 +28,22 @@ export function validarObjeto(campos) {
   const datoClave = campos.dato_clave.trim()
   if (datoClave === '') errores.dato_clave = 'El dato clave es obligatorio'
 
+  // La descripcion es opcional y no tiene reglas: vacia, la API la guarda
+  // como "sin descripcion".
+  const descripcion = campos.descripcion.trim()
+
+  const imagen = campos.imagen_url.trim()
+  const errorImagen = errorDeImagen(imagen)
+  if (errorImagen) errores.imagen_url = errorImagen
+
   return {
     errores,
-    cuerpo: { nombre, sala_id: Number(campos.sala_id), dato_clave: datoClave },
+    cuerpo: {
+      nombre,
+      sala_id: Number(campos.sala_id),
+      dato_clave: datoClave,
+      descripcion,
+      imagen_url: imagen,
+    },
   }
 }
