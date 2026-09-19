@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSesion } from '../sesion/contexto.js'
 import { DURACION_MAXIMA, DURACION_MINIMA, validarMision } from '../validaciones/mision.js'
+import Campo from './Campo.jsx'
 
 // Formulario de datos de una mision, compartido por el alta (ADM01, ADM02) y
 // la edicion (ADM05). Al ser uno solo, crear y editar no pueden terminar con
@@ -17,35 +18,6 @@ import { DURACION_MAXIMA, DURACION_MINIMA, validarMision } from '../validaciones
 
 const ORDEN_CAMPOS = ['nombre', 'descripcion', 'duracion_estimada', 'imagen_url']
 const AVISO_ERRORES = 'Revisá los campos marcados.'
-
-// Etiqueta, ayuda y mensaje de error de un campo. El error se vincula al
-// campo con aria-describedby, para que un lector de pantalla lo anuncie.
-function Campo({ id, etiqueta, obligatorio, opcional, ayuda, error, children }) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {etiqueta}
-        {obligatorio && (
-          <span aria-hidden="true" className="ml-0.5 text-red-600">
-            *
-          </span>
-        )}
-        {opcional && <span className="font-normal text-stone-500"> (opcional)</span>}
-      </label>
-      {children}
-      {ayuda && (
-        <p id={`${id}-ayuda`} className="mt-1 text-sm text-stone-500">
-          {ayuda}
-        </p>
-      )}
-      {error && (
-        <p id={`${id}-error`} className="mt-1 text-sm font-medium text-red-700">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
 
 export default function FormularioMision({
   valoresIniciales,

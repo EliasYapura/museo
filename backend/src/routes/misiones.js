@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
+import { esIdValido } from '../validaciones/id.js';
 import { validarMision } from '../validaciones/mision.js';
 
 export const misionesRouter = Router();
@@ -8,32 +10,10 @@ export const misionesRouter = Router();
 // Todas las rutas de misiones son solo para administradores.
 misionesRouter.use(verificarToken, requerirRol('administrador'));
 
-// Codigos de error de PostgreSQL que indican datos invalidos. La validacion
-// deberia atajarlos antes; esto es la ultima red por si una regla de la base
-// y una de la API llegaran a diferir. Sin esta traduccion llegarian al
-// manejador general como error 500, que significa "fallo el servidor".
-const ERRORES_DE_DATOS = {
-  '23502': 'Falta un dato obligatorio', // not_null_violation
-  '23514': 'Algún dato está fuera del rango permitido', // check_violation
-  '22P02': 'Algún dato tiene un formato inválido', // invalid_text_representation
-  '22003': 'Algún número es demasiado grande', // numeric_value_out_of_range
-  '22001': 'Algún texto es demasiado largo', // string_data_right_truncation
-};
-
-function responderSiEsErrorDeDatos(err, res) {
-  if (!ERRORES_DE_DATOS[err.code]) return false;
-  res.status(400).json({ error: ERRORES_DE_DATOS[err.code] });
-  return true;
-}
-
 // Columnas que se devuelven al consultar, crear o editar una mision.
 const COLUMNAS = `id, nombre, descripcion, duracion_estimada, imagen_url, dificultad,
                   activa, creada_por, creada_en, actualizada_en`;
 
-// Un id de la URL tiene que ser un entero positivo. Se limita a 15 digitos:
-// con mas, Number() pierde precision y PostgreSQL rechazaria el valor.
-// Un id imposible se responde como "no encontrada", igual que uno inexistente.
-const esIdValido = (texto) => /^[1-9]\d{0,14}$/.test(texto);
 const NO_ENCONTRADA = { error: 'La misión no existe' };
 
 // GET /misiones — lista las misiones para el panel.

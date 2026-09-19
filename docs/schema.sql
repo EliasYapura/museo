@@ -84,10 +84,14 @@ CREATE TABLE objetos (
     tipo_identificador  tipo_identificador  NOT NULL DEFAULT 'qr',
     codigo              VARCHAR(120)        NOT NULL UNIQUE,
     activo              BOOLEAN             NOT NULL DEFAULT TRUE,
-    creado_en           TIMESTAMPTZ         NOT NULL DEFAULT NOW()
+    creado_en           TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
+    -- Mismo criterio que en misiones: ni el nombre ni el dato clave pueden
+    -- ser un texto vacio o de solo espacios (ADM15).
+    CONSTRAINT chk_objeto_nombre_con_texto     CHECK (nombre ~ '\S'),
+    CONSTRAINT chk_objeto_dato_clave_con_texto CHECK (dato_clave ~ '\S')
 );
 
-CREATE INDEX idx_objetos_sala      ON objetos(sala_id);
+CREATE INDEX idx_objetos_sala     ON objetos(sala_id);
 CREATE INDEX idx_objetos_categoria ON objetos(categoria_id);
 CREATE INDEX idx_objetos_codigo    ON objetos(codigo);
 

@@ -3,6 +3,8 @@ import express from 'express';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { misionesRouter } from './routes/misiones.js';
+import { objetosRouter } from './routes/objetos.js';
+import { salasRouter } from './routes/salas.js';
 
 // La app se configura aca y se arranca en index.js. Asi se puede importar
 // la app completa sin abrir un puerto, por ejemplo para probarla.
@@ -28,6 +30,8 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRouter);
 app.use('/misiones', misionesRouter);
+app.use('/objetos', objetosRouter);
+app.use('/salas', salasRouter);
 
 // Cualquier ruta que no coincidio con las anteriores.
 app.use((req, res) => {
