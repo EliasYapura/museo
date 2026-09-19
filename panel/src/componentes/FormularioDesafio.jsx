@@ -4,18 +4,24 @@ import { useSesion } from '../sesion/contexto.js'
 import { TIPOS_DESAFIO } from '../tiposDesafio.js'
 import Campo from './Campo.jsx'
 
-// Formulario de un desafio, compartido por el alta y la edicion (ADM08).
-// Los campos propios de cada tipo son de ADM09 y la respuesta correcta de
-// ADM12: todavia no estan.
+// Formulario de un desafio, compartido por el alta y la edicion (ADM08), con
+// los campos propios de cada tipo (ADM09). La respuesta correcta es de ADM12.
 //
 // Props:
-// - valoresIniciales: { enunciado, tipo, objeto_id }, todos como texto.
+// - valoresIniciales: { enunciado, tipo, objeto_id, opciones, tolerancia }.
+//   Todos como los maneja el formulario: texto, salvo opciones, que es una
+//   lista de textos.
 // - alGuardar(cuerpo): envia los datos a la API.
 // - textoBoton / textoEnviando.
 // - alCancelar: si viene, muestra un boton Cancelar (se usa al editar).
 
-const ORDEN_CAMPOS = ['enunciado', 'tipo', 'objeto_id']
+const ORDEN_CAMPOS = ['enunciado', 'tipo', 'objeto_id', 'opciones', 'tolerancia']
 const AVISO_ERRORES = 'Revisá los campos marcados.'
+
+// Las mismas reglas que la API, en backend/src/validaciones/desafio.js.
+const TIPOS_CON_OBJETO = ['escaneo_objeto', 'busqueda_guiada']
+const MINIMO_OPCIONES = 2
+const MAXIMO_OPCIONES = 6
 
 export default function FormularioDesafio({
   valoresIniciales,
@@ -56,6 +62,24 @@ export default function FormularioDesafio({
     }
   }
 
+  // Opciones de una pregunta de opcion multiple: se editan como una lista.
+  function cambiarOpcion(indice, valor) {
+    const opciones = campos.opciones.map((opcion, i) => (i === indice ? valor : opcion))
+    setCampos({ ...campos, opciones })
+    if (errores.opciones) {
+      const { opciones: _quitado, ...resto } = errores
+      setErrores(resto)
+    }
+  }
+
+  function agregarOpcion() {
+    setCampos({ ...campos, opciones: [...campos.opciones, ''] })
+  }
+
+  function quitarOpcion(indice) {
+    setCampos({ ...campos, opciones: campos.opciones.filter((_, i) => i !== indice) })
+  }
+
   async function enviar(evento) {
     evento.preventDefault()
     setError('')
@@ -65,6 +89,24 @@ export default function FormularioDesafio({
     const enunciado = campos.enunciado.trim()
     if (enunciado === '') encontrados.enunciado = 'El enunciado es obligatorio'
     if (campos.tipo === '') encontrados.tipo = 'El tipo de desafío es obligatorio'
+    if (TIPOS_CON_OBJETO.includes(campos.tipo) && campos.objeto_id === '') {
+      encontrados.objeto_id = 'Para este tipo hay que elegir el objeto'
+    }
+
+    // Solo se manda lo que corresponde al tipo elegido: asi, al cambiar de
+    // tipo, no se guardan los datos del anterior.
+    const propiosDelTipo = {}
+    if (campos.tipo === 'pregunta_opcion_multiple') {
+      const opciones = campos.opciones.map((opcion) => opcion.trim()).filter((opcion) => opcion !== '')
+      const distintas = new Set(opciones.map((opcion) => opcion.toLowerCase()))
+      if (opciones.length < MINIMO_OPCIONES || opciones.length > MAXIMO_OPCIONES) {
+        encontrados.opciones = `Cargá entre ${MINIMO_OPCIONES} y ${MAXIMO_OPCIONES} opciones`
+      } else if (distintas.size !== opciones.length) {
+        encontrados.opciones = 'No puede haber opciones repetidas'
+      }
+      propiosDelTipo.opciones = opciones
+    }
+    if (campos.tipo === 'respuesta_corta') propiosDelTipo.tolerancia = campos.tolerancia
 
     if (Object.keys(encontrados).length > 0) {
       setErrores(encontrados)
@@ -81,6 +123,7 @@ export default function FormularioDesafio({
         tipo: campos.tipo,
         // Sin objeto asociado se manda null, no el texto vacio del selector.
         objeto_id: campos.objeto_id === '' ? null : Number(campos.objeto_id),
+        ...propiosDelTipo,
       })
     } catch (err) {
       if (err.status === 401) {
@@ -98,7 +141,8 @@ export default function FormularioDesafio({
     }
   }
 
-  function propsDe(id, { obligatorio = true } = {}) {
+  function propsDe(id, { obligatorio = true, ayuda = false } = {}) {
+    const describe = [ayuda && `${id}-ayuda`, errores[id] && `${id}-error`].filter(Boolean).join(' ')
     return {
       id,
       name: id,
@@ -106,7 +150,7 @@ export default function FormularioDesafio({
       onChange: cambiar,
       'aria-required': obligatorio ? 'true' : undefined,
       'aria-invalid': errores[id] ? true : undefined,
-      'aria-describedby': errores[id] ? `${id}-error` : undefined,
+      'aria-describedby': describe || undefined,
       className: `w-full rounded-md border px-3 py-2 focus:outline-none ${
         errores[id]
           ? 'border-red-500 bg-red-50 focus:border-red-700'
@@ -128,8 +172,14 @@ export default function FormularioDesafio({
           <textarea {...propsDe('enunciado')} rows={3} />
         </Campo>
 
-        <Campo id="tipo" etiqueta="Tipo de desafío" obligatorio error={errores.tipo}>
-          <select {...propsDe('tipo')}>
+        <Campo
+          id="tipo"
+          etiqueta="Tipo de desafío"
+          obligatorio
+          ayuda="Cada tipo pide sus propios datos, que aparecen abajo."
+          error={errores.tipo}
+        >
+          <select {...propsDe('tipo', { ayuda: true })}>
             <option value="">Elegí un tipo</option>
             {TIPOS_DESAFIO.map(([valor, nombre]) => (
               <option key={valor} value={valor}>
@@ -139,9 +189,106 @@ export default function FormularioDesafio({
           </select>
         </Campo>
 
-        <Campo id="objeto_id" etiqueta="Objeto del museo" opcional error={errores.objeto_id}>
-          <select {...propsDe('objeto_id', { obligatorio: false })} disabled={!objetos}>
-            <option value="">{objetos ? 'Sin objeto asociado' : 'Cargando objetos…'}</option>
+        {/* Bloque propio del tipo elegido (ADM09). Al cambiar el tipo se
+            muestra el del tipo nuevo y se manda solo lo de ese tipo. */}
+        {campos.tipo === 'pregunta_opcion_multiple' && (
+          <fieldset>
+            <legend className="mb-1 text-sm font-medium">
+              Opciones de respuesta
+              <span aria-hidden="true" className="ml-0.5 text-red-600">
+                *
+              </span>
+            </legend>
+            <p className="mb-2 text-sm text-stone-500">
+              Entre {MINIMO_OPCIONES} y {MAXIMO_OPCIONES}. Cuál es la correcta se elige más adelante.
+            </p>
+            <div className="space-y-2">
+              {campos.opciones.map((opcion, indice) => (
+                // El indice alcanza como key: las opciones se identifican por
+                // su posicion y la lista no se reordena.
+                <div key={indice} className="flex gap-2">
+                  <input
+                    // La primera lleva el id del grupo, para que el foco al
+                    // primer campo con error caiga en un campo de verdad.
+                    id={indice === 0 ? 'opciones' : undefined}
+                    value={opcion}
+                    onChange={(evento) => cambiarOpcion(indice, evento.target.value)}
+                    aria-label={`Opción ${indice + 1}`}
+                    aria-invalid={errores.opciones ? true : undefined}
+                    className={`w-full rounded-md border px-3 py-2 focus:outline-none ${
+                      errores.opciones
+                        ? 'border-red-500 bg-red-50 focus:border-red-700'
+                        : 'border-stone-300 focus:border-stone-900'
+                    }`}
+                  />
+                  {campos.opciones.length > MINIMO_OPCIONES && (
+                    <button
+                      type="button"
+                      onClick={() => quitarOpcion(indice)}
+                      aria-label={`Quitar la opción ${indice + 1}`}
+                      className="rounded-md border border-stone-300 px-3 py-2 text-sm font-medium hover:bg-stone-100"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {campos.opciones.length < MAXIMO_OPCIONES && (
+              <button
+                type="button"
+                onClick={agregarOpcion}
+                className="mt-2 rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-100"
+              >
+                Agregar opción
+              </button>
+            )}
+            {errores.opciones && (
+              <p className="mt-1 text-sm font-medium text-red-700">{errores.opciones}</p>
+            )}
+          </fieldset>
+        )}
+
+        {campos.tipo === 'respuesta_corta' && (
+          <Campo
+            id="tolerancia"
+            etiqueta="Comparación de la respuesta"
+            ayuda="La respuesta correcta se carga más adelante."
+            error={errores.tolerancia}
+          >
+            <select {...propsDe('tolerancia')}>
+              <option value="flexible">Flexible: ignora mayúsculas, acentos y espacios de más</option>
+              <option value="exacta">Exacta: tiene que escribirse igual</option>
+            </select>
+          </Campo>
+        )}
+
+        <Campo
+          id="objeto_id"
+          etiqueta="Objeto del museo"
+          obligatorio={TIPOS_CON_OBJETO.includes(campos.tipo)}
+          opcional={!TIPOS_CON_OBJETO.includes(campos.tipo)}
+          ayuda={
+            TIPOS_CON_OBJETO.includes(campos.tipo)
+              ? 'Es la pieza que el visitante tiene que encontrar y escanear.'
+              : undefined
+          }
+          error={errores.objeto_id}
+        >
+          <select
+            {...propsDe('objeto_id', {
+              obligatorio: TIPOS_CON_OBJETO.includes(campos.tipo),
+              ayuda: TIPOS_CON_OBJETO.includes(campos.tipo),
+            })}
+            disabled={!objetos}
+          >
+            <option value="">
+              {!objetos
+                ? 'Cargando objetos…'
+                : TIPOS_CON_OBJETO.includes(campos.tipo)
+                  ? 'Elegí el objeto'
+                  : 'Sin objeto asociado'}
+            </option>
             {objetos?.map((objeto) => (
               <option key={objeto.id} value={objeto.id}>
                 {objeto.nombre} ({objeto.codigo}){objeto.activo ? '' : ' — dado de baja'}
