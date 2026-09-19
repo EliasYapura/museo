@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
+import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
 import { misionesRouter } from './routes/misiones.js';
 import { objetosRouter } from './routes/objetos.js';
 import { salasRouter } from './routes/salas.js';
@@ -29,7 +30,10 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/auth', authRouter);
+// Va antes de /misiones porque es una direccion mas especifica.
+app.use('/misiones/:misionId/desafios', desafiosDeMisionRouter);
 app.use('/misiones', misionesRouter);
+app.use('/desafios', desafiosRouter);
 app.use('/objetos', objetosRouter);
 app.use('/salas', salasRouter);
 
