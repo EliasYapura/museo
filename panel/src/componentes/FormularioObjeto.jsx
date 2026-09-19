@@ -165,6 +165,35 @@ export default function FormularioObjeto({
           <textarea {...propsDe('descripcion', { ayuda: true, obligatorio: false })} rows={5} />
         </Campo>
 
+        {/* Dos opciones excluyentes: un grupo de radios y no una lista
+            desplegable, asi las dos se ven sin abrir nada. El fieldset con
+            su legend hace que un lector de pantalla anuncie de que grupo
+            forma parte cada opcion. */}
+        <fieldset>
+          <legend className="mb-1 text-sm font-medium">Identificador de la pieza</legend>
+          <p className="mb-2 text-sm text-stone-500">
+            Cómo va a escanear el visitante este objeto durante el recorrido.
+          </p>
+          <div className="flex gap-4">
+            {[
+              ['qr', 'Código QR'],
+              ['nfc', 'Etiqueta NFC'],
+            ].map(([valor, etiqueta]) => (
+              <label key={valor} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="tipo_identificador"
+                  value={valor}
+                  checked={campos.tipo_identificador === valor}
+                  onChange={cambiar}
+                  className="size-4"
+                />
+                {etiqueta}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
         <Campo
           id="imagen_url"
           etiqueta="Imagen"

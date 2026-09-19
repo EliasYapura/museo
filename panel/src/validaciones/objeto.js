@@ -1,4 +1,6 @@
-// Reglas de los datos de un objeto, del lado del panel (ADM15, ADM16).
+// Reglas de los datos de un objeto, del lado del panel (ADM15, ADM16, ADM17).
+// El tipo de identificador no se valida: sale de dos opciones fijas del
+// formulario, y si llegara otro valor lo rechaza la API.
 //
 // Son las mismas que aplica la API en backend/src/validaciones/objeto.js, con
 // los mismos mensajes. Igual que con las misiones, la copia de la API es la
@@ -44,6 +46,7 @@ export function validarObjeto(campos) {
       dato_clave: datoClave,
       descripcion,
       imagen_url: imagen,
+      tipo_identificador: campos.tipo_identificador,
     },
   }
 }
