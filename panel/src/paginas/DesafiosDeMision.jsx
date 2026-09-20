@@ -11,6 +11,7 @@ const CAMPOS_VACIOS = {
   objeto_id: '',
   opciones: ['', ''], // el minimo que pide una pregunta de opcion multiple
   tolerancia: 'flexible',
+  respuesta_correcta: '',
 }
 
 // La configuracion que corresponde a otro tipo no viene: esos campos toman su
@@ -21,6 +22,7 @@ const camposDesdeDesafio = (desafio) => ({
   objeto_id: desafio.objeto_id === null ? '' : String(desafio.objeto_id),
   opciones: desafio.configuracion?.opciones ?? CAMPOS_VACIOS.opciones,
   tolerancia: desafio.configuracion?.tolerancia ?? CAMPOS_VACIOS.tolerancia,
+  respuesta_correcta: desafio.respuesta_correcta ?? '',
 })
 
 // Resumen de lo propio del tipo, para no tener que abrir cada desafio.
@@ -119,8 +121,8 @@ function DesafiosDe({ misionId }) {
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Desafíos{mision ? ` de “${mision.nombre}”` : ''}</h1>
       <p className="mb-6 text-sm text-stone-600">
-        Se resuelven en el orden en que aparecen. Cada tipo pide sus propios datos; la respuesta
-        correcta se carga más adelante.
+        Se resuelven en el orden en que aparecen. Cada tipo pide sus propios datos y su respuesta
+        correcta.
       </p>
 
       {error && (
@@ -156,6 +158,9 @@ function DesafiosDe({ misionId }) {
                       `${desafio.orden}. ${nombreDeTipo(desafio.tipo)}`,
                       desafio.objeto ?? 'sin objeto asociado',
                       resumenDeConfiguracion(desafio),
+                      desafio.respuesta_correcta
+                        ? `respuesta: ${desafio.respuesta_correcta}`
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
