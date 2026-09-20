@@ -24,8 +24,8 @@ for (const router of [desafiosRouter, desafiosDeMisionRouter]) {
 // Columnas de un desafio. Incluye el nombre del objeto asociado, que puede no
 // tener: por eso LEFT JOIN y no JOIN, que dejaria afuera esos desafios.
 // puntos se devuelve pero no se edita todavia (ADM11).
-const COLUMNAS = `d.id, d.mision_id, d.orden, d.tipo, d.enunciado, d.configuracion, d.puntos,
-                  d.objeto_id, o.nombre AS objeto`;
+const COLUMNAS = `d.id, d.mision_id, d.orden, d.tipo, d.enunciado, d.configuracion,
+                  d.respuesta_correcta, d.puntos, d.objeto_id, o.nombre AS objeto`;
 const DESDE = 'FROM desafios d LEFT JOIN objetos o ON o.id = d.objeto_id';
 
 const NO_ENCONTRADO = { error: 'El desafío no existe' };
@@ -78,13 +78,21 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
     // uq_desafio_orden rechazaria. Reordenarlos es ADM10.
     const { rows } = await pool.query(
       `WITH nuevo AS (
-         INSERT INTO desafios (mision_id, objeto_id, tipo, enunciado, configuracion, orden)
-         SELECT $1, $2, $3, $4, $5::jsonb, COALESCE(MAX(orden), 0) + 1
+         INSERT INTO desafios (mision_id, objeto_id, tipo, enunciado, configuracion,
+                               respuesta_correcta, orden)
+         SELECT $1, $2, $3, $4, $5::jsonb, $6, COALESCE(MAX(orden), 0) + 1
          FROM desafios WHERE mision_id = $1
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM nuevo d LEFT JOIN objetos o ON o.id = d.objeto_id`,
-      [misionId, valores.objeto_id, valores.tipo, valores.enunciado, JSON.stringify(valores.configuracion)]
+      [
+        misionId,
+        valores.objeto_id,
+        valores.tipo,
+        valores.enunciado,
+        JSON.stringify(valores.configuracion),
+        valores.respuesta_correcta,
+      ]
     );
     return res.status(201).json({ desafio: rows[0] });
   } catch (err) {
@@ -103,8 +111,8 @@ desafiosRouter.get('/:id', async (req, res) => {
   return res.json({ desafio: rows[0] });
 });
 
-// PUT /desafios/:id — modifica el enunciado, el tipo, el objeto asociado y la
-// configuracion propia del tipo.
+// PUT /desafios/:id — modifica el enunciado, el tipo, el objeto asociado, la
+// configuracion propia del tipo y la respuesta correcta.
 // La mision y el orden no se tocan: mover un desafio de mision no esta en el
 // backlog y reordenarlos es ADM10.
 desafiosRouter.put('/:id', async (req, res) => {
@@ -119,18 +127,27 @@ desafiosRouter.put('/:id', async (req, res) => {
     const { rows } = await pool.query(
       `WITH cambiado AS (
          UPDATE desafios
-         SET enunciado = $2, tipo = $3, objeto_id = $4, configuracion = $5::jsonb
+         SET enunciado = $2, tipo = $3, objeto_id = $4, configuracion = $5::jsonb,
+             respuesta_correcta = $6
          WHERE id = $1
            AND (enunciado IS DISTINCT FROM $2
                 OR tipo IS DISTINCT FROM $3
                 OR objeto_id IS DISTINCT FROM $4
                 -- jsonb compara el contenido, no el texto: el mismo dato con
                 -- las claves en otro orden no cuenta como un cambio.
-                OR configuracion IS DISTINCT FROM $5::jsonb)
+                OR configuracion IS DISTINCT FROM $5::jsonb
+                OR respuesta_correcta IS DISTINCT FROM $6)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiado d LEFT JOIN objetos o ON o.id = d.objeto_id`,
-      [req.params.id, valores.enunciado, valores.tipo, valores.objeto_id, JSON.stringify(valores.configuracion)]
+      [
+        req.params.id,
+        valores.enunciado,
+        valores.tipo,
+        valores.objeto_id,
+        JSON.stringify(valores.configuracion),
+        valores.respuesta_correcta,
+      ]
     );
     if (rows[0]) return res.json({ desafio: rows[0], modificado: true });
 

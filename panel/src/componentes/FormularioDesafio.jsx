@@ -15,7 +15,7 @@ import Campo from './Campo.jsx'
 // - textoBoton / textoEnviando.
 // - alCancelar: si viene, muestra un boton Cancelar (se usa al editar).
 
-const ORDEN_CAMPOS = ['enunciado', 'tipo', 'objeto_id', 'opciones', 'tolerancia']
+const ORDEN_CAMPOS = ['enunciado', 'tipo', 'objeto_id', 'opciones', 'respuesta_correcta', 'tolerancia']
 const AVISO_ERRORES = 'Revisá los campos marcados.'
 
 // Las mismas reglas que la API, en backend/src/validaciones/desafio.js.
@@ -63,13 +63,20 @@ export default function FormularioDesafio({
   }
 
   // Opciones de una pregunta de opcion multiple: se editan como una lista.
+  // La respuesta correcta se guarda como el texto de la opcion elegida, asi
+  // que al corregir esa opcion hay que actualizarla para que la marca no se
+  // pierda (ADM12).
   function cambiarOpcion(indice, valor) {
     const opciones = campos.opciones.map((opcion, i) => (i === indice ? valor : opcion))
-    setCampos({ ...campos, opciones })
-    if (errores.opciones) {
-      const { opciones: _quitado, ...resto } = errores
-      setErrores(resto)
-    }
+    const eraLaCorrecta =
+      campos.respuesta_correcta !== '' && campos.respuesta_correcta === campos.opciones[indice]
+    setCampos({
+      ...campos,
+      opciones,
+      respuesta_correcta: eraLaCorrecta ? valor : campos.respuesta_correcta,
+    })
+    const { opciones: _sinOpciones, respuesta_correcta: _sinRespuesta, ...resto } = errores
+    setErrores(resto)
   }
 
   function agregarOpcion() {
@@ -77,7 +84,20 @@ export default function FormularioDesafio({
   }
 
   function quitarOpcion(indice) {
-    setCampos({ ...campos, opciones: campos.opciones.filter((_, i) => i !== indice) })
+    const opciones = campos.opciones.filter((_, i) => i !== indice)
+    // Si se quita la opcion marcada como correcta, la marca queda sin dueño.
+    const seguiaMarcada = opciones.includes(campos.respuesta_correcta)
+    setCampos({
+      ...campos,
+      opciones,
+      respuesta_correcta: seguiaMarcada ? campos.respuesta_correcta : '',
+    })
+  }
+
+  function marcarCorrecta(opcion) {
+    setCampos({ ...campos, respuesta_correcta: opcion })
+    const { respuesta_correcta: _quitado, ...resto } = errores
+    setErrores(resto)
   }
 
   async function enviar(evento) {
@@ -104,9 +124,21 @@ export default function FormularioDesafio({
       } else if (distintas.size !== opciones.length) {
         encontrados.opciones = 'No puede haber opciones repetidas'
       }
+
+      const correcta = campos.respuesta_correcta.trim()
+      if (correcta === '') encontrados.respuesta_correcta = 'Marcá cuál es la opción correcta'
+      else if (!opciones.includes(correcta)) {
+        encontrados.respuesta_correcta = 'La respuesta correcta tiene que ser una de las opciones'
+      }
       propiosDelTipo.opciones = opciones
+      propiosDelTipo.respuesta_correcta = correcta
     }
-    if (campos.tipo === 'respuesta_corta') propiosDelTipo.tolerancia = campos.tolerancia
+    if (campos.tipo === 'respuesta_corta') {
+      const correcta = campos.respuesta_correcta.trim()
+      if (correcta === '') encontrados.respuesta_correcta = 'La respuesta correcta es obligatoria'
+      propiosDelTipo.tolerancia = campos.tolerancia
+      propiosDelTipo.respuesta_correcta = correcta
+    }
 
     if (Object.keys(encontrados).length > 0) {
       setErrores(encontrados)
@@ -200,13 +232,26 @@ export default function FormularioDesafio({
               </span>
             </legend>
             <p className="mb-2 text-sm text-stone-500">
-              Entre {MINIMO_OPCIONES} y {MAXIMO_OPCIONES}. Cuál es la correcta se elige más adelante.
+              Entre {MINIMO_OPCIONES} y {MAXIMO_OPCIONES}. Marcá el círculo de la opción correcta.
             </p>
             <div className="space-y-2">
               {campos.opciones.map((opcion, indice) => (
                 // El indice alcanza como key: las opciones se identifican por
                 // su posicion y la lista no se reordena.
-                <div key={indice} className="flex gap-2">
+                <div key={indice} className="flex items-center gap-2">
+                  {/* La marca de "correcta" viaja con el texto de la opcion,
+                      que es lo que se guarda (ADM12). Una opcion vacia no se
+                      puede marcar: no llegaria a guardarse. */}
+                  <input
+                    id={indice === 0 ? 'respuesta_correcta' : undefined}
+                    type="radio"
+                    name="respuesta_correcta"
+                    checked={opcion !== '' && campos.respuesta_correcta === opcion}
+                    onChange={() => marcarCorrecta(opcion)}
+                    disabled={opcion.trim() === ''}
+                    aria-label={`La opción ${indice + 1} es la correcta`}
+                    className="size-4 shrink-0"
+                  />
                   <input
                     // La primera lleva el id del grupo, para que el foco al
                     // primer campo con error caiga en un campo de verdad.
@@ -246,21 +291,42 @@ export default function FormularioDesafio({
             {errores.opciones && (
               <p className="mt-1 text-sm font-medium text-red-700">{errores.opciones}</p>
             )}
+            {errores.respuesta_correcta && (
+              <p className="mt-1 text-sm font-medium text-red-700">{errores.respuesta_correcta}</p>
+            )}
           </fieldset>
         )}
 
         {campos.tipo === 'respuesta_corta' && (
-          <Campo
-            id="tolerancia"
-            etiqueta="Comparación de la respuesta"
-            ayuda="La respuesta correcta se carga más adelante."
-            error={errores.tolerancia}
-          >
-            <select {...propsDe('tolerancia')}>
-              <option value="flexible">Flexible: ignora mayúsculas, acentos y espacios de más</option>
-              <option value="exacta">Exacta: tiene que escribirse igual</option>
-            </select>
-          </Campo>
+          <>
+            <Campo
+              id="respuesta_correcta"
+              etiqueta="Respuesta correcta"
+              obligatorio
+              error={errores.respuesta_correcta}
+            >
+              <input {...propsDe('respuesta_correcta')} />
+            </Campo>
+
+            <Campo
+              id="tolerancia"
+              etiqueta="Comparación de la respuesta"
+              ayuda="Cómo se compara lo que escribe el visitante con la respuesta correcta."
+              error={errores.tolerancia}
+            >
+              <select {...propsDe('tolerancia', { ayuda: true })}>
+                <option value="flexible">Flexible: ignora mayúsculas, acentos y espacios de más</option>
+                <option value="exacta">Exacta: tiene que escribirse igual</option>
+              </select>
+            </Campo>
+          </>
+        )}
+
+        {TIPOS_CON_OBJETO.includes(campos.tipo) && (
+          <p className="rounded-md bg-stone-100 px-3 py-2 text-sm text-stone-600">
+            Este tipo no lleva respuesta escrita: se resuelve encontrando la pieza y escaneando su
+            código.
+          </p>
         )}
 
         <Campo

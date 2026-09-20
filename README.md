@@ -75,9 +75,9 @@ curl http://localhost:3000/health
 | GET | `/misiones/:id` | administrador | Datos de una misión |
 | PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
 | GET | `/misiones/:id/desafios` | administrador | Lista los desafíos de una misión, en orden |
-| POST | `/misiones/:id/desafios` | administrador | Agrega un desafío al final de la misión |
+| POST | `/misiones/:id/desafios` | administrador | Agrega un desafío al final de la misión, con los datos de su tipo |
 | GET | `/desafios/:id` | administrador | Datos de un desafío |
-| PUT | `/desafios/:id` | administrador | Modifica enunciado, tipo y objeto asociado |
+| PUT | `/desafios/:id` | administrador | Modifica enunciado, tipo, objeto, datos del tipo y respuesta correcta |
 | DELETE | `/desafios/:id` | administrador | Borra un desafío y sus pistas |
 | GET | `/salas` | administrador | Lista las salas en el orden del recorrido |
 | GET | `/objetos` | administrador | Lista los objetos, activos y dados de baja |

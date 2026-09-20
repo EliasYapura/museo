@@ -1,6 +1,6 @@
-// Reglas de los datos de un desafio: los comunes a todos (ADM08) y los
-// propios de cada tipo, que van en la columna configuracion (ADM09).
-// La respuesta correcta es de ADM12: todavia no se valida aca.
+// Reglas de los datos de un desafio: los comunes a todos (ADM08), los propios
+// de cada tipo, que van en la columna configuracion (ADM09), y la respuesta
+// correcta (ADM12).
 //
 // La configuracion se arma segun el tipo y solo con las claves de ese tipo:
 // lo que venga de mas se descarta, asi cambiar el tipo de un desafio no deja
@@ -79,6 +79,22 @@ function validarOpciones(valor) {
   return { valor: opciones };
 }
 
+const LARGO_MAXIMO_RESPUESTA = 200;
+
+// Respuesta de un desafio de respuesta corta (ADM12). Se guarda tal cual se
+// escribe: que una tilde o una mayuscula cuenten o no lo decide la tolerancia
+// al comparar, en el Sprint 3.
+function validarRespuestaEscrita(valor) {
+  if (typeof valor !== 'string' || valor.trim() === '') {
+    return { error: 'La respuesta correcta es obligatoria' };
+  }
+  const texto = valor.trim();
+  if ([...texto].length > LARGO_MAXIMO_RESPUESTA) {
+    return { error: `La respuesta no puede superar los ${LARGO_MAXIMO_RESPUESTA} caracteres` };
+  }
+  return { valor: texto };
+}
+
 function validarTolerancia(valor) {
   // Sin dato se usa la comparacion flexible, que es la que menos frustra al
   // visitante: una tilde o una mayuscula no deberian dar la respuesta por mal.
@@ -87,24 +103,49 @@ function validarTolerancia(valor) {
   return { valor };
 }
 
-// Devuelve { configuracion, errores } segun el tipo. Los tipos de escaneo y
-// busqueda no guardan nada: lo que hay que escanear se sabe por el objeto
-// asociado, asi que si se regenera su codigo (ADM17) el desafio sigue
-// apuntando a la pieza correcta.
-function validarConfiguracion(tipo, datos) {
+// Devuelve { configuracion, respuesta_correcta, errores } segun el tipo.
+//
+// Los tipos de escaneo y busqueda no guardan nada: lo que hay que escanear se
+// sabe por el objeto asociado, asi que si se regenera su codigo (ADM17) el
+// desafio sigue apuntando a la pieza correcta. Tampoco llevan respuesta: se
+// resuelven encontrando la pieza.
+function validarSegunTipo(tipo, datos) {
   if (tipo === 'pregunta_opcion_multiple') {
-    const resultado = validarOpciones(datos.opciones);
-    if (resultado.error) return { errores: { opciones: resultado.error } };
-    return { configuracion: { opciones: resultado.valor }, errores: {} };
+    const opciones = validarOpciones(datos.opciones);
+    if (opciones.error) return { errores: { opciones: opciones.error } };
+
+    // La respuesta tiene que ser una de las opciones cargadas (ADM12). Si no,
+    // la pregunta no se podria responder nunca. Se compara con las opciones
+    // ya recortadas, que son las que se guardan.
+    const respuesta = typeof datos.respuesta_correcta === 'string' ? datos.respuesta_correcta.trim() : '';
+    if (respuesta === '') {
+      return { errores: { respuesta_correcta: 'Marcá cuál es la opción correcta' } };
+    }
+    if (!opciones.valor.includes(respuesta)) {
+      return { errores: { respuesta_correcta: 'La respuesta correcta tiene que ser una de las opciones' } };
+    }
+    return {
+      configuracion: { opciones: opciones.valor },
+      respuesta_correcta: respuesta,
+      errores: {},
+    };
   }
 
   if (tipo === 'respuesta_corta') {
-    const resultado = validarTolerancia(datos.tolerancia);
-    if (resultado.error) return { errores: { tolerancia: resultado.error } };
-    return { configuracion: { tolerancia: resultado.valor }, errores: {} };
+    const tolerancia = validarTolerancia(datos.tolerancia);
+    if (tolerancia.error) return { errores: { tolerancia: tolerancia.error } };
+
+    const respuesta = validarRespuestaEscrita(datos.respuesta_correcta);
+    if (respuesta.error) return { errores: { respuesta_correcta: respuesta.error } };
+
+    return {
+      configuracion: { tolerancia: tolerancia.valor },
+      respuesta_correcta: respuesta.valor,
+      errores: {},
+    };
   }
 
-  return { configuracion: {}, errores: {} };
+  return { configuracion: {}, respuesta_correcta: null, errores: {} };
 }
 
 export function validarDesafio(datos) {
@@ -128,10 +169,11 @@ export function validarDesafio(datos) {
       errores.objeto_id = 'Para este tipo hay que elegir el objeto';
     }
 
-    const configuracion = validarConfiguracion(valores.tipo, datos);
-    Object.assign(errores, configuracion.errores);
-    if (Object.keys(configuracion.errores).length === 0) {
-      valores.configuracion = configuracion.configuracion;
+    const segunTipo = validarSegunTipo(valores.tipo, datos);
+    Object.assign(errores, segunTipo.errores);
+    if (Object.keys(segunTipo.errores).length === 0) {
+      valores.configuracion = segunTipo.configuracion;
+      valores.respuesta_correcta = segunTipo.respuesta_correcta;
     }
   }
 
