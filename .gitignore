@@ -27,3 +27,8 @@ build/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Archivos de instrucciones y configuracion de asistentes locales:
+# son de la maquina de cada uno, no del proyecto.
+CLAUDE.md
+.claude/
