@@ -1,6 +1,6 @@
 -- =====================================================================
 --  Exploradores del Museo
---  Esquema de base de datos (PostgreSQL 16)
+--  Esquema de base de datos (PostgreSQL 17)
 --  Compatible con Supabase
 -- =====================================================================
 
