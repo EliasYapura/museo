@@ -81,7 +81,7 @@ curl http://localhost:3000/health
 | PUT | `/misiones/:id/desafios/orden` | administrador | Reordena los desafíos: recibe la lista completa de ids y los renumera |
 | GET | `/desafios/:id` | administrador | Datos de un desafío |
 | PUT | `/desafios/:id` | administrador | Modifica enunciado, tipo, objeto, puntos, datos del tipo y respuesta correcta |
-| DELETE | `/desafios/:id` | administrador | Borra un desafío y sus pistas |
+| DELETE | `/desafios/:id` | administrador | Borra un desafío y sus pistas; si era el último, despublica la misión |
 | GET | `/salas` | administrador | Lista las salas en el orden del recorrido |
 | GET | `/objetos` | administrador | Lista los objetos, activos y dados de baja, con en cuántos desafíos se usa cada uno |
 | POST | `/objetos` | administrador | Registra un objeto (descripción e imagen opcionales, identificador QR o NFC) y le genera un código único |

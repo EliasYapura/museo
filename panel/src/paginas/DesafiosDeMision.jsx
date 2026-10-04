@@ -109,10 +109,16 @@ function DesafiosDe({ misionId }) {
     setError('')
     setBorrando(null)
     try {
-      await pedir(`/desafios/${desafio.id}`, { metodo: 'DELETE', token })
+      const { despublicada } = await pedir(`/desafios/${desafio.id}`, { metodo: 'DELETE', token })
       setDesafios((actuales) => actuales.filter((d) => d.id !== desafio.id))
       if (editando === desafio.id) setEditando(null)
-      setAviso('Desafío borrado.')
+      // Quedarse sin desafios despublica la mision (ADM04). Es un cambio que
+      // no se pidio y que no se ve en esta pantalla, asi que se avisa.
+      setAviso(
+        despublicada
+          ? 'Desafío borrado. La misión volvió a borrador porque se quedó sin desafíos.'
+          : 'Desafío borrado.'
+      )
     } catch (err) {
       if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
       else setError(`No se pudo borrar el desafío ${posicion}: ${err.message}`)

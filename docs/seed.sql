@@ -90,7 +90,9 @@ INSERT INTO misiones (nombre, descripcion, dificultad, duracion_estimada, activa
  'facil', 15, TRUE, 1),
 ('Cazadores de fósiles',
  'Identificá los reptiles que dominaron la Era Mesozoica.',
- 'media', 25, TRUE, 1);
+ -- Queda en borrador porque no tiene desafíos cargados: una misión publicada
+ -- y vacía no tiene nada para resolver (ADM04).
+ 'media', 25, FALSE, 1);
 
 -- La tercera misión se desbloquea al completar la segunda
 UPDATE misiones SET mision_previa_id = 2 WHERE id = 3;
