@@ -53,6 +53,9 @@ function DesafiosDe({ misionId }) {
   // Id del desafio que se esta editando, o null si el formulario es de alta.
   const [editando, setEditando] = useState(null)
   const [borrando, setBorrando] = useState(null)
+  // Mientras se guarda un orden nuevo se desactivan las flechas, para que dos
+  // clics seguidos no manden dos listas distintas.
+  const [moviendo, setMoviendo] = useState(false)
 
   // Se incrementa despues de agregar, para volver a armar el formulario
   // vacio y que no queden los datos del desafio recien creado.
@@ -83,7 +86,9 @@ function DesafiosDe({ misionId }) {
       cuerpo,
     })
     setDesafios((actuales) => [...actuales, desafio])
-    setAviso(`Desafío agregado como número ${desafio.orden}.`)
+    // El numero que se avisa es la posicion en la lista, igual que el que se
+    // ve en cada fila: la columna orden puede tener huecos de algun borrado.
+    setAviso(`Desafío agregado como número ${desafios.length + 1}.`)
     setVersion((v) => v + 1)
   }
 
@@ -98,7 +103,7 @@ function DesafiosDe({ misionId }) {
     setAviso(modificado ? 'Cambios guardados.' : 'No había cambios para guardar.')
   }
 
-  async function borrar(desafio) {
+  async function borrar(desafio, posicion) {
     setError('')
     setBorrando(null)
     try {
@@ -108,11 +113,47 @@ function DesafiosDe({ misionId }) {
       setAviso('Desafío borrado.')
     } catch (err) {
       if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
-      else setError(`No se pudo borrar el desafío ${desafio.orden}: ${err.message}`)
+      else setError(`No se pudo borrar el desafío ${posicion}: ${err.message}`)
+    }
+  }
+
+  // Mueve un desafio una posicion y manda la lista completa en el orden nuevo
+  // (ADM10). La pantalla muestra el cambio antes de la respuesta para que la
+  // flecha no se sienta trabada; si la API lo rechaza, se vuelve al anterior.
+  async function mover(indice, salto) {
+    const destino = indice + salto
+    if (destino < 0 || destino >= desafios.length) return
+
+    const anteriores = desafios
+    const nuevos = [...desafios]
+    nuevos[indice] = anteriores[destino]
+    nuevos[destino] = anteriores[indice]
+
+    setError('')
+    setAviso('')
+    setBorrando(null)
+    setMoviendo(true)
+    setDesafios(nuevos)
+    try {
+      const { desafios: guardados } = await pedir(`/misiones/${misionId}/desafios/orden`, {
+        metodo: 'PUT',
+        token,
+        cuerpo: { ids: nuevos.map((d) => d.id) },
+      })
+      setDesafios(guardados)
+    } catch (err) {
+      setDesafios(anteriores)
+      if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
+      else setError(`No se pudo cambiar el orden: ${err.message}`)
+    } finally {
+      setMoviendo(false)
     }
   }
 
   const enEdicion = desafios?.find((d) => d.id === editando)
+  // La posicion que se muestra sale del lugar en la lista y no de la columna
+  // orden: asi el numero acompana al movimiento sin esperar la respuesta.
+  const posicionEnEdicion = desafios?.findIndex((d) => d.id === editando) + 1
 
   return (
     <div className="max-w-3xl">
@@ -146,7 +187,7 @@ function DesafiosDe({ misionId }) {
 
       {desafios?.length > 0 && (
         <ol className="mb-6 space-y-3">
-          {desafios.map((desafio) => (
+          {desafios.map((desafio, indice) => (
             <li
               key={desafio.id}
               className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
@@ -155,7 +196,7 @@ function DesafiosDe({ misionId }) {
                 <div>
                   <p className="text-sm text-stone-500">
                     {[
-                      `${desafio.orden}. ${nombreDeTipo(desafio.tipo)}`,
+                      `${indice + 1}. ${nombreDeTipo(desafio.tipo)}`,
                       desafio.objeto ?? 'sin objeto asociado',
                       resumenDeConfiguracion(desafio),
                       desafio.respuesta_correcta
@@ -168,6 +209,29 @@ function DesafiosDe({ misionId }) {
                   <p className="font-medium">{desafio.enunciado}</p>
                 </div>
                 <div className="flex gap-2">
+                  {/* Las flechas solo tienen sentido con mas de un desafio. */}
+                  {desafios.length > 1 && (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => mover(indice, -1)}
+                        disabled={moviendo || indice === 0}
+                        aria-label={`Subir el desafío ${indice + 1}`}
+                        className="rounded-md border border-stone-300 px-2.5 py-1.5 text-sm font-medium hover:bg-stone-100 disabled:opacity-40"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => mover(indice, 1)}
+                        disabled={moviendo || indice === desafios.length - 1}
+                        aria-label={`Bajar el desafío ${indice + 1}`}
+                        className="rounded-md border border-stone-300 px-2.5 py-1.5 text-sm font-medium hover:bg-stone-100 disabled:opacity-40"
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -175,7 +239,7 @@ function DesafiosDe({ misionId }) {
                       setBorrando(null)
                       setEditando(desafio.id)
                     }}
-                    aria-label={`Editar el desafío ${desafio.orden}`}
+                    aria-label={`Editar el desafío ${indice + 1}`}
                     className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-100"
                   >
                     Editar
@@ -186,7 +250,7 @@ function DesafiosDe({ misionId }) {
                       setAviso('')
                       setBorrando(desafio.id)
                     }}
-                    aria-label={`Borrar el desafío ${desafio.orden}`}
+                    aria-label={`Borrar el desafío ${indice + 1}`}
                     className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-100"
                   >
                     Borrar
@@ -198,12 +262,12 @@ function DesafiosDe({ misionId }) {
               {borrando === desafio.id && (
                 <div role="alert" className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
                   <p className="text-sm text-amber-900">
-                    Se borra el desafío {desafio.orden} y sus pistas, y no se puede deshacer.
+                    Se borra el desafío {indice + 1} y sus pistas, y no se puede deshacer.
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => borrar(desafio)}
+                      onClick={() => borrar(desafio, indice + 1)}
                       className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700"
                     >
                       Sí, borrar
@@ -226,7 +290,7 @@ function DesafiosDe({ misionId }) {
       {desafios !== null && (
         <section className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold">
-            {enEdicion ? `Editar el desafío ${enEdicion.orden}` : 'Agregar un desafío'}
+            {enEdicion ? `Editar el desafío ${posicionEnEdicion}` : 'Agregar un desafío'}
           </h2>
           {/* La key vuelve a armar el formulario al pasar de agregar a editar
               o de un desafio a otro, para que no queden datos del anterior. */}

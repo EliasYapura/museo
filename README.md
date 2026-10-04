@@ -77,6 +77,7 @@ curl http://localhost:3000/health
 | PATCH | `/misiones/:id/archivada` | administrador | Archiva la misión (`{ "archivada": true }`) o la devuelve al listado |
 | GET | `/misiones/:id/desafios` | administrador | Lista los desafíos de una misión, en orden |
 | POST | `/misiones/:id/desafios` | administrador | Agrega un desafío al final de la misión, con los datos de su tipo |
+| PUT | `/misiones/:id/desafios/orden` | administrador | Reordena los desafíos: recibe la lista completa de ids y los renumera |
 | GET | `/desafios/:id` | administrador | Datos de un desafío |
 | PUT | `/desafios/:id` | administrador | Modifica enunciado, tipo, objeto, datos del tipo y respuesta correcta |
 | DELETE | `/desafios/:id` | administrador | Borra un desafío y sus pistas |
