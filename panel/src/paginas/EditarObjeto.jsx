@@ -4,6 +4,7 @@ import { pedir } from '../api.js'
 import { camposDesdeObjeto } from '../camposObjeto.js'
 import FormularioObjeto from '../componentes/FormularioObjeto.jsx'
 import IdentificadorObjeto from '../componentes/IdentificadorObjeto.jsx'
+import UsosDelObjeto from '../componentes/UsosDelObjeto.jsx'
 import VistaPreviaImagen from '../componentes/VistaPreviaImagen.jsx'
 import { formatearFecha } from '../fechas.js'
 import { useSesion } from '../sesion/contexto.js'
@@ -85,6 +86,8 @@ function EditorDeObjeto({ id }) {
       </p>
 
       <IdentificadorObjeto objeto={objeto} alRegenerar={regenerarCodigo} />
+
+      <UsosDelObjeto objetoId={objeto.id} />
 
       {objeto.imagen_url && (
         <div className="mb-6">

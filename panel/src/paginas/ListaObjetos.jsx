@@ -121,6 +121,7 @@ export default function ListaObjetos() {
                 <th scope="col" className="px-4 py-3 font-medium">Código</th>
                 <th scope="col" className="px-4 py-3 font-medium">Identificador</th>
                 <th scope="col" className="px-4 py-3 font-medium">Estado</th>
+                <th scope="col" className="px-4 py-3 font-medium">Usos</th>
                 <th scope="col" className="px-4 py-3 font-medium">
                   <span className="sr-only">Acciones</span>
                 </th>
@@ -144,6 +145,17 @@ export default function ListaObjetos() {
                     >
                       {objeto.activo ? 'Activo' : 'Dado de baja'}
                     </span>
+                  </td>
+                  {/* En cuantos desafios se usa la pieza (ADM18): es lo que
+                      hay que mirar antes de darla de baja o borrarla. */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {objeto.desafios === 0 ? (
+                      <span className="text-stone-400">—</span>
+                    ) : (
+                      <Link to={`/objetos/${objeto.id}/editar`} className="underline hover:text-stone-600">
+                        {objeto.desafios} {objeto.desafios === 1 ? 'desafío' : 'desafíos'}
+                      </Link>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
@@ -181,7 +193,7 @@ export default function ListaObjetos() {
 
                 {confirmando === objeto.id && (
                   <tr>
-                    <td colSpan={6} className="px-4 pb-3">
+                    <td colSpan={7} className="px-4 pb-3">
                       <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3">
                         <p className="text-sm text-amber-900">
                           “{objeto.nombre}” se borra de la base y no se puede deshacer. Si la pieza
