@@ -3,12 +3,15 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 // Error con el codigo HTTP adjunto, para que las pantallas puedan distinguir
 // "sesion vencida" (401) de "sin permiso" (403) o "datos invalidos" (400).
 export class ErrorApi extends Error {
-  constructor(status, mensaje, errores = null) {
+  constructor(status, mensaje, errores = null, datos = null) {
     super(mensaje)
     this.status = status
     // Errores por campo ({ nombre: 'El nombre es obligatorio', ... }), cuando
     // la API rechaza datos invalidos. Permiten mostrar cada mensaje en su campo.
     this.errores = errores
+    // La respuesta completa, para los rechazos que traen algun dato extra
+    // (por ejemplo, en cuantos desafios se usa un objeto que no se puede borrar).
+    this.datos = datos
   }
 }
 
@@ -32,7 +35,12 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, token } = {}) {
 
   const datos = await respuesta.json().catch(() => null)
   if (!respuesta.ok) {
-    throw new ErrorApi(respuesta.status, datos?.error ?? 'Ocurrió un error inesperado', datos?.errores)
+    throw new ErrorApi(
+      respuesta.status,
+      datos?.error ?? 'Ocurrió un error inesperado',
+      datos?.errores,
+      datos
+    )
   }
   return datos
 }

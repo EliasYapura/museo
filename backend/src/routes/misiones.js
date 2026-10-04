@@ -113,3 +113,35 @@ misionesRouter.put('/:id', async (req, res) => {
     throw err;
   }
 });
+
+// PATCH /misiones/:id/archivada — archiva una mision o la devuelve al
+// listado (ADM07).
+//
+// Es una baja logica: la mision deja de verse en el panel, pero sus desafios,
+// sus recompensas y el avance de los visitantes siguen en la base. Borrarla
+// de verdad se los llevaria a todos por delante.
+//
+// Va en una ruta aparte y no en el PUT para que no se archive sin querer al
+// guardar el formulario. Archivar tambien desactiva: una mision archivada no
+// puede quedar publicada para los visitantes.
+misionesRouter.patch('/:id/archivada', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  const archivada = req.body?.archivada;
+  if (typeof archivada !== 'boolean') {
+    return res.status(400).json({ error: 'Hay que indicar si la misión se archiva (true) o no (false)' });
+  }
+
+  // Sin el filtro de archivada en el WHERE: es la unica ruta que tambien
+  // tiene que poder tocar una mision ya archivada, para devolverla al listado.
+  const { rows } = await pool.query(
+    `UPDATE misiones
+     SET archivada = $2,
+         activa = CASE WHEN $2 THEN FALSE ELSE activa END
+     WHERE id = $1
+     RETURNING ${COLUMNAS}, archivada`,
+    [req.params.id, archivada]
+  );
+  if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
+  return res.json({ mision: rows[0] });
+});

@@ -216,3 +216,38 @@ objetosRouter.patch('/:id/estado', async (req, res) => {
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);
   return res.json({ objeto: rows[0] });
 });
+
+// DELETE /objetos/:id — borra un objeto del museo (ADM07).
+//
+// A diferencia de la mision, que se archiva, aca el borrado es real: un
+// objeto mal cargado no deja historial que valga la pena conservar. Lo que no
+// se permite es borrar una pieza que algun desafio este usando: la clave
+// foranea lo impide (ON DELETE RESTRICT) y dejaria desafios apuntando a una
+// pieza inexistente. Para esos casos esta la baja logica.
+objetosRouter.delete('/:id', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
+
+  const enUso = await pool.query(
+    'SELECT count(*)::int AS cantidad FROM desafios WHERE objeto_id = $1',
+    [req.params.id]
+  );
+  if (enUso.rows[0].cantidad > 0) {
+    return res.status(409).json({
+      error: 'El objeto se usa en desafíos y no se puede borrar',
+      desafios: enUso.rows[0].cantidad,
+    });
+  }
+
+  try {
+    const { rowCount } = await pool.query('DELETE FROM objetos WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json(NO_ENCONTRADO);
+    return res.status(204).end();
+  } catch (err) {
+    // Entre la consulta de arriba y el DELETE alguien pudo crear un desafio
+    // con este objeto. La base lo rechaza y se responde lo mismo.
+    if (err.code === '23503') {
+      return res.status(409).json({ error: 'El objeto se usa en desafíos y no se puede borrar' });
+    }
+    throw err;
+  }
+});
