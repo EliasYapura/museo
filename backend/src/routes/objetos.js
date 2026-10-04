@@ -14,8 +14,13 @@ objetosRouter.use(verificarToken, requerirRol('administrador'));
 // Columnas que se devuelven de un objeto. Incluyen el nombre de la sala para
 // que el panel no tenga que buscarlo aparte. Las consultas llaman "o" a la
 // fila del objeto y "s" a su sala.
+// desafios es en cuantos desafios se usa la pieza (ADM18). Va en todas las
+// respuestas y no solo en el listado, asi el panel puede reemplazar una fila
+// con lo que devuelve un PATCH sin perder el dato. count() da bigint, que
+// node-pg entrega como texto; el ::int lo devuelve como numero.
 const COLUMNAS = `o.id, o.nombre, o.dato_clave, o.descripcion, o.imagen_url, o.codigo,
-                  o.tipo_identificador, o.activo, o.creado_en, o.sala_id, s.nombre AS sala`;
+                  o.tipo_identificador, o.activo, o.creado_en, o.sala_id, s.nombre AS sala,
+                  (SELECT count(*) FROM desafios d WHERE d.objeto_id = o.id)::int AS desafios`;
 
 const NO_ENCONTRADO = { error: 'El objeto no existe' };
 const SALA_INEXISTENTE = { error: 'Datos inválidos', errores: { sala_id: 'La sala elegida no existe' } };
@@ -63,6 +68,32 @@ objetosRouter.get('/:id', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);
   return res.json({ objeto: rows[0] });
+});
+
+// GET /objetos/:id/desafios — en que desafios se usa la pieza (ADM18).
+//
+// Es la vuelta del selector de objeto del formulario de desafios: desde el
+// objeto se ve donde esta usado, que es lo que hay que mirar antes de darlo
+// de baja o borrarlo. Incluye los desafios de misiones archivadas, marcados
+// como tales: son los que explican que un objeto que parece libre no se pueda
+// borrar.
+objetosRouter.get('/:id/desafios', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
+
+  const objeto = await pool.query('SELECT id, nombre, codigo FROM objetos WHERE id = $1', [
+    req.params.id,
+  ]);
+  if (!objeto.rows[0]) return res.status(404).json(NO_ENCONTRADO);
+
+  const { rows } = await pool.query(
+    `SELECT d.id, d.orden, d.tipo, d.enunciado, d.puntos,
+            m.id AS mision_id, m.nombre AS mision, m.archivada
+     FROM desafios d JOIN misiones m ON m.id = d.mision_id
+     WHERE d.objeto_id = $1
+     ORDER BY m.archivada, m.nombre, d.orden, d.id`,
+    [req.params.id]
+  );
+  return res.json({ objeto: objeto.rows[0], desafios: rows });
 });
 
 // POST /objetos — registra un objeto (ADM15), con su descripcion e imagen
