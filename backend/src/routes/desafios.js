@@ -75,7 +75,7 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
     // El orden se calcula dentro del mismo INSERT: el desafio nuevo va al
     // final de la mision. Hacerlo en una sola consulta evita que dos altas a
     // la vez lean el mismo maximo y elijan el mismo orden, que la restriccion
-    // uq_desafio_orden rechazaria. Reordenarlos es ADM10.
+    // uq_desafio_orden rechazaria. El orden se cambia despues con PUT /misiones/:misionId/desafios/orden.
     const { rows } = await pool.query(
       `WITH nuevo AS (
          INSERT INTO desafios (mision_id, objeto_id, tipo, enunciado, configuracion,
@@ -102,6 +102,90 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
   }
 });
 
+// PUT /misiones/:misionId/desafios/orden — reordena los desafios (ADM10).
+//
+// Recibe la lista completa de ids en el orden deseado y los renumera 1, 2, 3...
+// Se manda la lista entera y no "subi este desafio" porque asi el servidor
+// tiene una sola verdad: el orden que llega es el orden final. Ademas, de paso
+// se arreglan los huecos que deja un borrado.
+desafiosDeMisionRouter.put('/orden', async (req, res) => {
+  const { misionId } = req.params;
+  if (!esIdValido(misionId)) return res.status(404).json(MISION_NO_ENCONTRADA);
+
+  const { ids } = req.body ?? {};
+  const esIdDeLista = (id) =>
+    typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= 999999999999999;
+  if (
+    !Array.isArray(ids) ||
+    ids.length === 0 ||
+    !ids.every(esIdDeLista) ||
+    new Set(ids).size !== ids.length
+  ) {
+    return res.status(400).json({ error: 'La lista de desafíos no es válida' });
+  }
+
+  // Varias consultas que tienen que valer como una sola operacion, asi que
+  // van por un cliente propio del pool y no por pool.query, que puede tomar
+  // una conexion distinta en cada llamada.
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+
+    const mision = await cliente.query(
+      'SELECT id, nombre FROM misiones WHERE id = $1 AND archivada = FALSE',
+      [misionId]
+    );
+    if (!mision.rows[0]) {
+      await cliente.query('ROLLBACK');
+      return res.status(404).json(MISION_NO_ENCONTRADA);
+    }
+
+    // FOR UPDATE reserva las filas hasta cerrar la transaccion: nadie puede
+    // agregar ni mover desafios de esta mision entre la lectura y el UPDATE.
+    const actuales = await cliente.query(
+      'SELECT id FROM desafios WHERE mision_id = $1 FOR UPDATE',
+      [misionId]
+    );
+    const idsActuales = new Set(actuales.rows.map((fila) => Number(fila.id)));
+    const estanTodos = idsActuales.size === ids.length && ids.every((id) => idsActuales.has(id));
+    if (!estanTodos) {
+      await cliente.query('ROLLBACK');
+      // Se rechaza en vez de reordenar lo que coincida: si la lista no es la
+      // de la mision, el panel esta mostrando algo viejo y conviene avisarlo.
+      return res.status(400).json({
+        error: 'La lista tiene que incluir exactamente los desafíos de la misión. Recargá la página.',
+      });
+    }
+
+    // WITH ORDINALITY numera los elementos del arreglo segun su posicion: el
+    // primer id queda con orden 1, el segundo con 2, y asi.
+    // Durante el renumerado dos desafios pasan por el mismo orden, lo que
+    // choca con uq_desafio_orden; la restriccion es DEFERRABLE INITIALLY
+    // DEFERRED, o sea que se verifica al cerrar la transaccion, cuando ya no
+    // hay repetidos.
+    await cliente.query(
+      `UPDATE desafios d
+          SET orden = nuevo.orden::smallint
+         FROM unnest($2::bigint[]) WITH ORDINALITY AS nuevo(id, orden)
+        WHERE d.id = nuevo.id AND d.mision_id = $1`,
+      [misionId, ids]
+    );
+
+    const { rows } = await cliente.query(
+      `SELECT ${COLUMNAS} ${DESDE} WHERE d.mision_id = $1 ORDER BY d.orden, d.id`,
+      [misionId]
+    );
+    await cliente.query('COMMIT');
+    return res.json({ mision: mision.rows[0], desafios: rows });
+  } catch (err) {
+    await cliente.query('ROLLBACK');
+    throw err;
+  } finally {
+    // Devuelve la conexion al pool, pase lo que pase.
+    cliente.release();
+  }
+});
+
 // GET /desafios/:id — datos de un desafio, para precargar el formulario.
 desafiosRouter.get('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
@@ -114,7 +198,7 @@ desafiosRouter.get('/:id', async (req, res) => {
 // PUT /desafios/:id — modifica el enunciado, el tipo, el objeto asociado, la
 // configuracion propia del tipo y la respuesta correcta.
 // La mision y el orden no se tocan: mover un desafio de mision no esta en el
-// backlog y reordenarlos es ADM10.
+// backlog y el orden se cambia por su propio endpoint (ADM10).
 desafiosRouter.put('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
 
