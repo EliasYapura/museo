@@ -254,10 +254,38 @@ desafiosRouter.put('/:id', async (req, res) => {
 // archivado y un desafio suelto no sirve para nada. La base borra con el las
 // pistas y el avance que los visitantes tuvieran en ese desafio (ON DELETE
 // CASCADE), por eso el panel pide confirmacion.
+// Si era el ultimo desafio de la mision, la mision se despublica sola: una
+// mision publicada y vacia se le ofrece al visitante y no tiene nada para
+// resolver (ADM04).
+//
+// Ojo con el NOT EXISTS: dentro de un WITH, todas las partes ven la misma
+// foto de la base, la de antes del DELETE. Preguntar si quedan desafios
+// devolveria que si, porque el que se esta borrando todavia figura. Por eso
+// la condicion excluye explicitamente al que se borra.
 desafiosRouter.delete('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
 
-  const { rowCount } = await pool.query('DELETE FROM desafios WHERE id = $1', [req.params.id]);
-  if (rowCount === 0) return res.status(404).json(NO_ENCONTRADO);
-  return res.status(204).end();
+  const { rows } = await pool.query(
+    `WITH borrado AS (
+       DELETE FROM desafios WHERE id = $1
+       RETURNING mision_id
+     ), despublicada AS (
+       UPDATE misiones m
+       SET activa = FALSE
+       FROM borrado b
+       WHERE m.id = b.mision_id
+         AND m.activa
+         AND NOT EXISTS (
+           SELECT 1 FROM desafios d WHERE d.mision_id = b.mision_id AND d.id <> $1
+         )
+       RETURNING m.id
+     )
+     SELECT (SELECT count(*) FROM borrado) AS borrados,
+            (SELECT count(*) FROM despublicada) AS despublicadas`,
+    [req.params.id]
+  );
+  if (Number(rows[0].borrados) === 0) return res.status(404).json(NO_ENCONTRADO);
+  // Devuelve si la mision quedo en borrador, para que el panel pueda avisarlo:
+  // es un cambio que el administrador no pidio y que no se ve en esa pantalla.
+  return res.json({ despublicada: Number(rows[0].despublicadas) > 0 });
 });
