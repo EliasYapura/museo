@@ -21,6 +21,12 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpira: process.env.JWT_EXPIRA || '8h',
-  // Origen del panel autorizado por CORS. En produccion, la URL de Vercel.
-  panelOrigin: process.env.PANEL_ORIGIN || 'http://localhost:5173',
+  // Origenes autorizados por CORS: el panel y, si la app del visitante se
+  // corre en el navegador, su servidor de desarrollo. En un emulador o en un
+  // telefono no hace falta: CORS es una regla de los navegadores.
+  // En produccion, las URLs de Vercel.
+  origenesPermitidos: [
+    process.env.PANEL_ORIGIN || 'http://localhost:5173',
+    process.env.APP_ORIGIN || 'http://localhost:5000',
+  ],
 };
