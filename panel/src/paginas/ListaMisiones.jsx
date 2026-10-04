@@ -13,6 +13,9 @@ export default function ListaMisiones() {
   // esta archivando en este momento.
   const [confirmando, setConfirmando] = useState(null)
   const [archivando, setArchivando] = useState(null)
+  // Id de la mision que se esta publicando o despublicando, para desactivar
+  // su boton mientras tanto (ADM04).
+  const [publicando, setPublicando] = useState(null)
 
   useEffect(() => {
     // Si el usuario sale de la pantalla antes de que llegue la respuesta, se
@@ -50,6 +53,33 @@ export default function ListaMisiones() {
       else setError(`No se pudo archivar “${mision.nombre}”: ${err.message}`)
     } finally {
       setArchivando(null)
+    }
+  }
+
+  // Publicar es lo que hace que los visitantes vean la mision en la app. No
+  // pide confirmacion porque se deshace con el mismo boton.
+  async function publicar(mision) {
+    setError('')
+    setAviso('')
+    setPublicando(mision.id)
+    try {
+      const { mision: actualizada } = await pedir(`/misiones/${mision.id}/activa`, {
+        metodo: 'PATCH',
+        token,
+        cuerpo: { activa: !mision.activa },
+      })
+      setMisiones((actuales) => actuales.map((m) => (m.id === mision.id ? actualizada : m)))
+      setAviso(
+        actualizada.activa
+          ? `“${mision.nombre}” ya está publicada: los visitantes la ven en la app.`
+          : `“${mision.nombre}” volvió a borrador: los visitantes ya no la ven.`
+      )
+    } catch (err) {
+      if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
+      // El 409 ya trae explicado por que no se puede publicar.
+      else setError(`No se pudo publicar “${mision.nombre}”: ${err.message}`)
+    } finally {
+      setPublicando(null)
     }
   }
 
@@ -95,6 +125,7 @@ export default function ListaMisiones() {
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Nombre</th>
                 <th scope="col" className="px-4 py-3 font-medium">Duración</th>
+                <th scope="col" className="px-4 py-3 font-medium">Desafíos</th>
                 <th scope="col" className="px-4 py-3 font-medium">Estado</th>
                 <th scope="col" className="px-4 py-3 font-medium">Última modificación</th>
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -111,13 +142,30 @@ export default function ListaMisiones() {
                 <tr>
                   <td className="px-4 py-3 font-medium">{mision.nombre}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{mision.duracion_estimada} min</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {mision.desafios === 0 ? (
+                      <Link
+                        to={`/misiones/${mision.id}/desafios`}
+                        className="text-stone-500 underline hover:text-stone-900"
+                      >
+                        sin desafíos
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/misiones/${mision.id}/desafios`}
+                        className="underline hover:text-stone-600"
+                      >
+                        {mision.desafios}
+                      </Link>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
                         mision.activa ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-700'
                       }`}
                     >
-                      {mision.activa ? 'Activa' : 'Inactiva'}
+                      {mision.activa ? 'Publicada' : 'Borrador'}
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-stone-600">
@@ -134,6 +182,23 @@ export default function ListaMisiones() {
                       >
                         Editar
                       </Link>
+                      {/* Una mision sin desafios no se puede publicar: el
+                          boton queda deshabilitado y el title explica por que,
+                          pero la API lo rechaza igual si la llaman directo. */}
+                      <button
+                        type="button"
+                        onClick={() => publicar(mision)}
+                        disabled={publicando === mision.id || (!mision.activa && mision.desafios === 0)}
+                        title={
+                          !mision.activa && mision.desafios === 0
+                            ? 'Agregale al menos un desafío para poder publicarla'
+                            : undefined
+                        }
+                        aria-label={`${mision.activa ? 'Despublicar' : 'Publicar'} ${mision.nombre}`}
+                        className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium whitespace-nowrap hover:bg-stone-100 disabled:opacity-40"
+                      >
+                        {mision.activa ? 'Despublicar' : 'Publicar'}
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -151,7 +216,7 @@ export default function ListaMisiones() {
 
                 {confirmando === mision.id && (
                   <tr>
-                    <td colSpan={5} className="px-4 pb-3">
+                    <td colSpan={6} className="px-4 pb-3">
                       <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3">
                         <p className="text-sm text-amber-900">
                           “{mision.nombre}” va a dejar de verse en este listado. Sus desafíos y el
