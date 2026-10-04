@@ -9,6 +9,7 @@ const CAMPOS_VACIOS = {
   enunciado: '',
   tipo: '',
   objeto_id: '',
+  puntos: '10', // el mismo valor por defecto que usa la API (ADM11)
   opciones: ['', ''], // el minimo que pide una pregunta de opcion multiple
   tolerancia: 'flexible',
   respuesta_correcta: '',
@@ -20,6 +21,7 @@ const camposDesdeDesafio = (desafio) => ({
   enunciado: desafio.enunciado,
   tipo: desafio.tipo,
   objeto_id: desafio.objeto_id === null ? '' : String(desafio.objeto_id),
+  puntos: String(desafio.puntos),
   opciones: desafio.configuracion?.opciones ?? CAMPOS_VACIOS.opciones,
   tolerancia: desafio.configuracion?.tolerancia ?? CAMPOS_VACIOS.tolerancia,
   respuesta_correcta: desafio.respuesta_correcta ?? '',
@@ -161,10 +163,20 @@ function DesafiosDe({ misionId }) {
         ← Volver a la misión
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Desafíos{mision ? ` de “${mision.nombre}”` : ''}</h1>
-      <p className="mb-6 text-sm text-stone-600">
-        Se resuelven en el orden en que aparecen. Cada tipo pide sus propios datos y su respuesta
-        correcta.
-      </p>
+      <div className="mb-6">
+        <p className="text-sm text-stone-600">
+          Se resuelven en el orden en que aparecen. Cada tipo pide sus propios datos y su respuesta
+          correcta.
+        </p>
+        {/* Cuanto vale la mision entera, para poder equilibrar una con otra
+            sin ir sumando desafio por desafio (ADM11). */}
+        {desafios?.length > 0 && (
+          <p className="mt-1 text-sm font-medium text-stone-700">
+            {desafios.length} {desafios.length === 1 ? 'desafío' : 'desafíos'} ·{' '}
+            {desafios.reduce((total, d) => total + d.puntos, 0)} puntos en total
+          </p>
+        )}
+      </div>
 
       {error && (
         <p role="alert" className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -197,6 +209,7 @@ function DesafiosDe({ misionId }) {
                   <p className="text-sm text-stone-500">
                     {[
                       `${indice + 1}. ${nombreDeTipo(desafio.tipo)}`,
+                      `${desafio.puntos} ${desafio.puntos === 1 ? 'punto' : 'puntos'}`,
                       desafio.objeto ?? 'sin objeto asociado',
                       resumenDeConfiguracion(desafio),
                       desafio.respuesta_correcta

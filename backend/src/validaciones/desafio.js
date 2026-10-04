@@ -43,6 +43,21 @@ function validarObjeto(valor) {
   return { valor };
 }
 
+// Puntos que suma el desafio al resolverse (ADM11). El tope evita que un cero
+// de mas al tipear haga que un solo desafio valga mas que toda la mision. El 0
+// se permite a proposito: sirve para un desafio de presentacion o de practica
+// que no suma. Si no viene el dato queda en 10, el valor por defecto de la base.
+export const PUNTOS_POR_DEFECTO = 10;
+export const PUNTOS_MAXIMOS = 1000;
+
+function validarPuntos(valor) {
+  if (valor === undefined || valor === null || valor === '') return { valor: PUNTOS_POR_DEFECTO };
+  if (typeof valor !== 'number' || !Number.isInteger(valor) || valor < 0 || valor > PUNTOS_MAXIMOS) {
+    return { error: `Los puntos tienen que ser un número entero entre 0 y ${PUNTOS_MAXIMOS}` };
+  }
+  return { valor };
+}
+
 // Tipos donde el visitante tiene que llegar a una pieza concreta: sin objeto
 // asociado no hay nada que escanear ni que buscar.
 export const TIPOS_CON_OBJETO = ['escaneo_objeto', 'busqueda_guiada'];
@@ -153,6 +168,7 @@ export function validarDesafio(datos) {
     enunciado: validarEnunciado(datos.enunciado),
     tipo: validarTipo(datos.tipo),
     objeto_id: validarObjeto(datos.objeto_id),
+    puntos: validarPuntos(datos.puntos),
   };
 
   const valores = {};
