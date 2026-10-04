@@ -15,13 +15,22 @@ import Campo from './Campo.jsx'
 // - textoBoton / textoEnviando.
 // - alCancelar: si viene, muestra un boton Cancelar (se usa al editar).
 
-const ORDEN_CAMPOS = ['enunciado', 'tipo', 'objeto_id', 'opciones', 'respuesta_correcta', 'tolerancia']
+const ORDEN_CAMPOS = [
+  'enunciado',
+  'tipo',
+  'puntos',
+  'objeto_id',
+  'opciones',
+  'respuesta_correcta',
+  'tolerancia',
+]
 const AVISO_ERRORES = 'Revisá los campos marcados.'
 
 // Las mismas reglas que la API, en backend/src/validaciones/desafio.js.
 const TIPOS_CON_OBJETO = ['escaneo_objeto', 'busqueda_guiada']
 const MINIMO_OPCIONES = 2
 const MAXIMO_OPCIONES = 6
+const PUNTOS_MAXIMOS = 1000
 
 export default function FormularioDesafio({
   valoresIniciales,
@@ -112,6 +121,12 @@ export default function FormularioDesafio({
     if (TIPOS_CON_OBJETO.includes(campos.tipo) && campos.objeto_id === '') {
       encontrados.objeto_id = 'Para este tipo hay que elegir el objeto'
     }
+    // El campo es un texto hasta que se manda: "10e2" o " " pasarian el type
+    // number del navegador, asi que se revisa que sean solo digitos (ADM11).
+    const puntos = campos.puntos.trim()
+    if (!/^\d+$/.test(puntos) || Number(puntos) > PUNTOS_MAXIMOS) {
+      encontrados.puntos = `Los puntos tienen que ser un número entero entre 0 y ${PUNTOS_MAXIMOS}`
+    }
 
     // Solo se manda lo que corresponde al tipo elegido: asi, al cambiar de
     // tipo, no se guardan los datos del anterior.
@@ -155,6 +170,7 @@ export default function FormularioDesafio({
         tipo: campos.tipo,
         // Sin objeto asociado se manda null, no el texto vacio del selector.
         objeto_id: campos.objeto_id === '' ? null : Number(campos.objeto_id),
+        puntos: Number(puntos),
         ...propiosDelTipo,
       })
     } catch (err) {
@@ -219,6 +235,26 @@ export default function FormularioDesafio({
               </option>
             ))}
           </select>
+        </Campo>
+
+        <Campo
+          id="puntos"
+          etiqueta="Puntos"
+          obligatorio
+          ayuda={`Lo que suma el visitante al resolverlo. Entre 0 y ${PUNTOS_MAXIMOS}; 0 para un desafío que no puntúa.`}
+          error={errores.puntos}
+        >
+          {/* inputMode numeric abre el teclado de numeros en el celular. */}
+          <div className="sm:max-w-32">
+            <input
+              {...propsDe('puntos', { ayuda: true })}
+              type="number"
+              min={0}
+              max={PUNTOS_MAXIMOS}
+              step={1}
+              inputMode="numeric"
+            />
+          </div>
         </Campo>
 
         {/* Bloque propio del tipo elegido (ADM09). Al cambiar el tipo se

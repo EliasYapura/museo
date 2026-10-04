@@ -23,7 +23,7 @@ for (const router of [desafiosRouter, desafiosDeMisionRouter]) {
 
 // Columnas de un desafio. Incluye el nombre del objeto asociado, que puede no
 // tener: por eso LEFT JOIN y no JOIN, que dejaria afuera esos desafios.
-// puntos se devuelve pero no se edita todavia (ADM11).
+// puntos los define el administrador en cada desafio (ADM11).
 const COLUMNAS = `d.id, d.mision_id, d.orden, d.tipo, d.enunciado, d.configuracion,
                   d.respuesta_correcta, d.puntos, d.objeto_id, o.nombre AS objeto`;
 const DESDE = 'FROM desafios d LEFT JOIN objetos o ON o.id = d.objeto_id';
@@ -79,8 +79,8 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
     const { rows } = await pool.query(
       `WITH nuevo AS (
          INSERT INTO desafios (mision_id, objeto_id, tipo, enunciado, configuracion,
-                               respuesta_correcta, orden)
-         SELECT $1, $2, $3, $4, $5::jsonb, $6, COALESCE(MAX(orden), 0) + 1
+                               respuesta_correcta, puntos, orden)
+         SELECT $1, $2, $3, $4, $5::jsonb, $6, $7, COALESCE(MAX(orden), 0) + 1
          FROM desafios WHERE mision_id = $1
          RETURNING *
        )
@@ -92,6 +92,7 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
         valores.enunciado,
         JSON.stringify(valores.configuracion),
         valores.respuesta_correcta,
+        valores.puntos,
       ]
     );
     return res.status(201).json({ desafio: rows[0] });
@@ -212,7 +213,7 @@ desafiosRouter.put('/:id', async (req, res) => {
       `WITH cambiado AS (
          UPDATE desafios
          SET enunciado = $2, tipo = $3, objeto_id = $4, configuracion = $5::jsonb,
-             respuesta_correcta = $6
+             respuesta_correcta = $6, puntos = $7
          WHERE id = $1
            AND (enunciado IS DISTINCT FROM $2
                 OR tipo IS DISTINCT FROM $3
@@ -220,7 +221,8 @@ desafiosRouter.put('/:id', async (req, res) => {
                 -- jsonb compara el contenido, no el texto: el mismo dato con
                 -- las claves en otro orden no cuenta como un cambio.
                 OR configuracion IS DISTINCT FROM $5::jsonb
-                OR respuesta_correcta IS DISTINCT FROM $6)
+                OR respuesta_correcta IS DISTINCT FROM $6
+                OR puntos IS DISTINCT FROM $7)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiado d LEFT JOIN objetos o ON o.id = d.objeto_id`,
@@ -231,6 +233,7 @@ desafiosRouter.put('/:id', async (req, res) => {
         valores.objeto_id,
         JSON.stringify(valores.configuracion),
         valores.respuesta_correcta,
+        valores.puntos,
       ]
     );
     if (rows[0]) return res.json({ desafio: rows[0], modificado: true });
