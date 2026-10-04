@@ -74,6 +74,7 @@ curl http://localhost:3000/health
 | POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
 | GET | `/misiones/:id` | administrador | Datos de una misión |
 | PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
+| PATCH | `/misiones/:id/archivada` | administrador | Archiva la misión (`{ "archivada": true }`) o la devuelve al listado |
 | GET | `/misiones/:id/desafios` | administrador | Lista los desafíos de una misión, en orden |
 | POST | `/misiones/:id/desafios` | administrador | Agrega un desafío al final de la misión, con los datos de su tipo |
 | GET | `/desafios/:id` | administrador | Datos de un desafío |
@@ -86,6 +87,7 @@ curl http://localhost:3000/health
 | PUT | `/objetos/:id` | administrador | Modifica nombre, sala, dato clave, descripción, imagen e identificador (el código no cambia) |
 | PATCH | `/objetos/:id/codigo` | administrador | Genera un código nuevo para el objeto |
 | PATCH | `/objetos/:id/estado` | administrador | Da de baja (`{ "activo": false }`) o reactiva un objeto |
+| DELETE | `/objetos/:id` | administrador | Borra un objeto; 409 si algún desafío lo usa |
 
 Las rutas con token esperan el header `Authorization: Bearer <token>`.
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { pedir } from '../api.js'
 import { useSesion } from '../sesion/contexto.js'
@@ -7,9 +7,14 @@ export default function ListaObjetos() {
   const { token, cerrarSesion } = useSesion()
   const [objetos, setObjetos] = useState(null)
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
   // Id del objeto cuyo estado se esta cambiando, para desactivar su boton
   // mientras tanto y que un doble clic no mande dos pedidos.
   const [cambiando, setCambiando] = useState(null)
+  // Id del objeto que espera confirmacion para borrarse, y el que se esta
+  // borrando en este momento.
+  const [confirmando, setConfirmando] = useState(null)
+  const [borrando, setBorrando] = useState(null)
 
   useEffect(() => {
     let vigente = true
@@ -45,6 +50,32 @@ export default function ListaObjetos() {
     }
   }
 
+  // Borrado real, a diferencia de la baja. La API lo rechaza con 409 si algun
+  // desafio usa el objeto: ahi se explica por que y se ofrece la baja.
+  async function borrar(objeto) {
+    setError('')
+    setBorrando(objeto.id)
+    try {
+      await pedir(`/objetos/${objeto.id}`, { metodo: 'DELETE', token })
+      setObjetos((actuales) => actuales.filter((o) => o.id !== objeto.id))
+      setConfirmando(null)
+      setAviso(`Objeto “${objeto.nombre}” borrado.`)
+    } catch (err) {
+      if (err.status === 401) cerrarSesion('Tu sesión venció. Ingresá de nuevo.')
+      else if (err.status === 409) {
+        const cuantos = err.datos?.desafios
+        setError(
+          `No se puede borrar “${objeto.nombre}”: se usa en ${
+            cuantos ? `${cuantos} desafío${cuantos > 1 ? 's' : ''}` : 'algún desafío'
+          }. Si ya no está en el museo, dalo de baja.`
+        )
+        setConfirmando(null)
+      } else setError(`No se pudo borrar “${objeto.nombre}”: ${err.message}`)
+    } finally {
+      setBorrando(null)
+    }
+  }
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -63,6 +94,12 @@ export default function ListaObjetos() {
       {error && (
         <p role="alert" className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+
+      {aviso && (
+        <p role="status" className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 font-medium text-green-900">
+          {aviso}
         </p>
       )}
 
@@ -91,7 +128,10 @@ export default function ListaObjetos() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {objetos.map((objeto) => (
-                <tr key={objeto.id} className={objeto.activo ? '' : 'text-stone-500'}>
+                // Cada objeto puede aportar dos filas: la suya y la de la
+                // confirmacion de borrado. La key va en el fragmento.
+                <Fragment key={objeto.id}>
+                <tr className={objeto.activo ? '' : 'text-stone-500'}>
                   <td className="px-4 py-3 font-medium">{objeto.nombre}</td>
                   <td className="px-4 py-3">{objeto.sala}</td>
                   <td className="px-4 py-3 font-mono whitespace-nowrap">{objeto.codigo}</td>
@@ -123,9 +163,53 @@ export default function ListaObjetos() {
                       >
                         {objeto.activo ? 'Dar de baja' : 'Reactivar'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAviso('')
+                          setError('')
+                          setConfirmando(objeto.id)
+                        }}
+                        aria-label={`Borrar ${objeto.nombre}`}
+                        className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-900 hover:bg-stone-100"
+                      >
+                        Borrar
+                      </button>
                     </div>
                   </td>
                 </tr>
+
+                {confirmando === objeto.id && (
+                  <tr>
+                    <td colSpan={6} className="px-4 pb-3">
+                      <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-sm text-amber-900">
+                          “{objeto.nombre}” se borra de la base y no se puede deshacer. Si la pieza
+                          dejó de exhibirse pero querés conservarla, usá “Dar de baja”.
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => borrar(objeto)}
+                            disabled={borrando === objeto.id}
+                            className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60"
+                          >
+                            {borrando === objeto.id ? 'Borrando…' : 'Sí, borrar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmando(null)}
+                            disabled={borrando === objeto.id}
+                            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-white disabled:opacity-60"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
