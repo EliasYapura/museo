@@ -11,8 +11,13 @@ export const misionesRouter = Router();
 misionesRouter.use(verificarToken, requerirRol('administrador'));
 
 // Columnas que se devuelven al consultar, crear o editar una mision.
+// desafios es cuantos tiene: una mision sin desafios no se puede publicar
+// (ADM04), asi que el panel necesita el dato en cada respuesta para saber si
+// el boton va habilitado. count() da bigint, que node-pg entrega como texto.
+const CUENTA_DESAFIOS =
+  '(SELECT count(*) FROM desafios d WHERE d.mision_id = misiones.id)::int AS desafios';
 const COLUMNAS = `id, nombre, descripcion, duracion_estimada, imagen_url, dificultad,
-                  activa, creada_por, creada_en, actualizada_en`;
+                  activa, creada_por, creada_en, actualizada_en, ${CUENTA_DESAFIOS}`;
 
 const NO_ENCONTRADA = { error: 'La misión no existe' };
 
@@ -21,7 +26,8 @@ const NO_ENCONTRADA = { error: 'La misión no existe' };
 // mas recientemente, que suelen ser en las que se esta trabajando.
 misionesRouter.get('/', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, nombre, duracion_estimada, dificultad, activa, creada_en, actualizada_en
+    `SELECT id, nombre, duracion_estimada, dificultad, activa, creada_en, actualizada_en,
+            ${CUENTA_DESAFIOS}
      FROM misiones
      WHERE archivada = FALSE
      ORDER BY actualizada_en DESC, id DESC`
@@ -117,6 +123,46 @@ misionesRouter.put('/:id', async (req, res) => {
 // PATCH /misiones/:id/archivada — archiva una mision o la devuelve al
 // listado (ADM07).
 //
+// PATCH /misiones/:id/activa — publica o despublica la mision (ADM04).
+//
+// Publicada quiere decir que los visitantes la ven en la app. Va en su propia
+// ruta, igual que archivada, para que guardar el formulario de la mision no
+// la publique sin querer.
+misionesRouter.patch('/:id/activa', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  const activa = req.body?.activa;
+  if (typeof activa !== 'boolean') {
+    return res.status(400).json({ error: 'Hay que indicar si la misión se publica (true) o no (false)' });
+  }
+
+  // Una mision sin desafios se puede empezar pero no tiene nada para resolver.
+  // La condicion va en el propio UPDATE y no en una consulta aparte: entre el
+  // SELECT y el UPDATE alguien podria borrar el ultimo desafio.
+  // Despublicar nunca se condiciona: si algo sale mal durante una visita,
+  // bajarla tiene que funcionar siempre.
+  const { rows } = await pool.query(
+    `UPDATE misiones
+     SET activa = $2
+     WHERE id = $1 AND archivada = FALSE
+       AND (NOT $2 OR EXISTS (SELECT 1 FROM desafios d WHERE d.mision_id = misiones.id))
+     RETURNING ${COLUMNAS}`,
+    [req.params.id, activa]
+  );
+  if (rows[0]) return res.json({ mision: rows[0] });
+
+  // No se actualizo nada: o la mision no esta, o se quiso publicar una vacia.
+  const existente = await pool.query(
+    `SELECT ${COLUMNAS} FROM misiones WHERE id = $1 AND archivada = FALSE`,
+    [req.params.id]
+  );
+  if (!existente.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+  return res.status(409).json({
+    error: 'Una misión sin desafíos no se puede publicar. Agregale al menos uno.',
+    mision: existente.rows[0],
+  });
+});
+
 // Es una baja logica: la mision deja de verse en el panel, pero sus desafios,
 // sus recompensas y el avance de los visitantes siguen en la base. Borrarla
 // de verdad se los llevaria a todos por delante.
