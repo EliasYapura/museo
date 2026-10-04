@@ -70,6 +70,7 @@ curl http://localhost:3000/health
 | POST | `/auth/registro` | público | Crea una cuenta de visitante |
 | POST | `/auth/login` | público | Devuelve un JWT válido por 8 horas |
 | GET | `/auth/perfil` | con token | Datos del usuario autenticado |
+| GET | `/publico/misiones` | público | Misiones publicadas, para la app del visitante: sin respuestas ni datos de administración |
 | GET | `/misiones` | administrador | Lista las misiones no archivadas, con cuántos desafíos tiene cada una |
 | POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
 | GET | `/misiones/:id` | administrador | Datos de una misión |
@@ -119,6 +120,22 @@ cd app
 flutter pub get
 flutter run
 ```
+
+Necesita la API levantada. La dirección de la API se resuelve sola según dónde
+corra la app, así que no hay que editar código para cambiar de forma de probar:
+
+| Dónde se prueba | Dirección que usa | Cómo se corre |
+| --- | --- | --- |
+| Navegador | `http://localhost:3000` | `flutter run -d edge --web-port=5000` |
+| Emulador de Android | `http://10.0.2.2:3000` | `flutter run` con el emulador abierto |
+| Teléfono por USB | la que se le pase | `flutter run --dart-define=API_URL=http://<IP-de-la-PC>:3000` |
+
+`10.0.2.2` es la dirección con la que el emulador llega a la computadora que lo
+hospeda: dentro del emulador, `localhost` es el propio teléfono virtual.
+
+En el navegador hace falta además que la API autorice ese origen: es la
+variable `APP_ORIGIN` del backend, que por defecto vale `http://localhost:5000`.
+Por eso el `--web-port=5000`.
 
 ## Convenciones del repositorio
 

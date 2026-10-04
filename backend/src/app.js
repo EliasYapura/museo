@@ -5,6 +5,7 @@ import { authRouter } from './routes/auth.js';
 import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
 import { misionesRouter } from './routes/misiones.js';
 import { objetosRouter } from './routes/objetos.js';
+import { publicoRouter } from './routes/publico.js';
 import { salasRouter } from './routes/salas.js';
 
 // La app se configura aca y se arranca en index.js. Asi se puede importar
@@ -12,9 +13,10 @@ import { salasRouter } from './routes/salas.js';
 export const app = express();
 
 // El navegador bloquea por defecto que una pagina llame a una API de otro
-// origen (el panel corre en otro puerto o dominio). CORS le indica que el
-// panel esta autorizado. Solo se habilita ese origen, no cualquiera.
-app.use(cors({ origin: config.panelOrigin }));
+// origen (el panel corre en otro puerto o dominio). CORS le indica cuales
+// estan autorizados: el panel y la app del visitante cuando se la corre en el
+// navegador. Solo esos dos, no cualquiera.
+app.use(cors({ origin: config.origenesPermitidos }));
 
 // Permite recibir cuerpos JSON en las peticiones.
 app.use(express.json());
@@ -30,6 +32,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/auth', authRouter);
+// Lo que consume la app del visitante, sin token (VIS01).
+app.use('/publico', publicoRouter);
 // Va antes de /misiones porque es una direccion mas especifica.
 app.use('/misiones/:misionId/desafios', desafiosDeMisionRouter);
 app.use('/misiones', misionesRouter);
