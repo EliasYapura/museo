@@ -250,7 +250,7 @@ class _TarjetaMision extends StatelessWidget {
     return Semantics(
       button: true,
       label: '${mision.nombre}. ${mision.subtitulo}. '
-          'Duración ${mision.duracionMin} minutos. '
+          'Duración estimada ${mision.duracionMin} minutos. '
           'Dificultad ${mision.dificultad.etiqueta}. '
           '${mision.puntos} puntos.',
       child: Container(
@@ -313,7 +313,9 @@ class _FilaMeta extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text('${mision.duracionMin} min', style: AppText.sans(size: 12.5)),
+        // "aprox." porque es una estimación del museo, no una promesa: cada
+        // visitante recorre a su ritmo (VIS02).
+        Text('${mision.duracionMin} min aprox.', style: AppText.sans(size: 12.5)),
         const SizedBox(width: 14),
 
         // El color del punto es solo refuerzo: la dificultad siempre se
