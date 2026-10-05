@@ -62,10 +62,17 @@ misionesRouter.post('/', async (req, res) => {
     // - creada_por sale del token y no del cuerpo, para que nadie pueda
     //   atribuirle la creacion de una mision a otra persona.
     const { rows } = await pool.query(
-      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, creada_por)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, dificultad, creada_por)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING ${COLUMNAS}`,
-      [valores.nombre, valores.descripcion, valores.duracion_estimada, valores.imagen_url, req.usuario.id]
+      [
+        valores.nombre,
+        valores.descripcion,
+        valores.duracion_estimada,
+        valores.imagen_url,
+        valores.dificultad,
+        req.usuario.id,
+      ]
     );
     return res.status(201).json({ mision: rows[0] });
   } catch (err) {
@@ -96,14 +103,23 @@ misionesRouter.put('/:id', async (req, res) => {
     // NULL: NULL <> NULL da NULL, no FALSE.
     const { rows } = await pool.query(
       `UPDATE misiones
-       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5
+       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5,
+           dificultad = $6
        WHERE id = $1 AND archivada = FALSE
          AND (nombre IS DISTINCT FROM $2
               OR descripcion IS DISTINCT FROM $3
               OR duracion_estimada IS DISTINCT FROM $4
-              OR imagen_url IS DISTINCT FROM $5)
+              OR imagen_url IS DISTINCT FROM $5
+              OR dificultad IS DISTINCT FROM $6)
        RETURNING ${COLUMNAS}`,
-      [req.params.id, valores.nombre, valores.descripcion, valores.duracion_estimada, valores.imagen_url]
+      [
+        req.params.id,
+        valores.nombre,
+        valores.descripcion,
+        valores.duracion_estimada,
+        valores.imagen_url,
+        valores.dificultad,
+      ]
     );
     if (rows[0]) return res.json({ mision: rows[0], modificada: true });
 

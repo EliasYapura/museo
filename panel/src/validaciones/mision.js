@@ -48,8 +48,16 @@ export function validarMision(campos, { duracionIlegible = false } = {}) {
   const errorImagen = errorDeImagen(imagen)
   if (errorImagen) errores.imagen_url = errorImagen
 
+  // La dificultad sale de un selector con las tres opciones, asi que no se
+  // valida aca: no hay forma de elegir otra cosa. La API igual la revisa.
   return {
     errores,
-    cuerpo: { nombre, descripcion, duracion_estimada: duracion, imagen_url: imagen },
+    cuerpo: {
+      nombre,
+      descripcion,
+      duracion_estimada: duracion,
+      dificultad: campos.dificultad,
+      imagen_url: imagen,
+    },
   }
 }

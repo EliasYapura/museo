@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSesion } from '../sesion/contexto.js'
 import { DURACION_MAXIMA, DURACION_MINIMA, validarMision } from '../validaciones/mision.js'
+import { DIFICULTADES } from '../dificultades.js'
 import Campo from './Campo.jsx'
 
 // Formulario de datos de una mision, compartido por el alta (ADM01, ADM02) y
@@ -16,7 +17,7 @@ import Campo from './Campo.jsx'
 //   para que la pantalla borre mensajes de exito de un guardado anterior.
 // - reiniciarAlGuardar: vacia el formulario tras guardar (util al crear).
 
-const ORDEN_CAMPOS = ['nombre', 'descripcion', 'duracion_estimada', 'imagen_url']
+const ORDEN_CAMPOS = ['nombre', 'descripcion', 'duracion_estimada', 'dificultad', 'imagen_url']
 const AVISO_ERRORES = 'Revisá los campos marcados.'
 
 export default function FormularioMision({
@@ -151,6 +152,24 @@ export default function FormularioMision({
             max={DURACION_MAXIMA}
             step={1}
           />
+        </Campo>
+
+        {/* Dificultad (ADM03): la ve el visitante en la app para elegir una
+            misión acorde a cuánto se quiere complicar. */}
+        <Campo
+          id="dificultad"
+          etiqueta="Dificultad"
+          obligatorio
+          ayuda="Lo que el visitante ve en la app antes de empezar."
+          error={errores.dificultad}
+        >
+          <select {...propsDe('dificultad', { ayuda: true, claseExtra: 'max-w-56' })} aria-required="true">
+            {DIFICULTADES.map(([valor, nombre]) => (
+              <option key={valor} value={valor}>
+                {nombre}
+              </option>
+            ))}
+          </select>
         </Campo>
 
         <Campo
