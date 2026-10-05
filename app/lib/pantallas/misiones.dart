@@ -21,14 +21,28 @@ class _PantallaMisionesState extends State<PantallaMisiones> {
   @override
   void initState() {
     super.initState();
-    _misiones = obtenerMisiones();
+    _misiones = _pedir();
+  }
+
+  /// Pide las misiones dejando el error "atendido".
+  ///
+  /// Si el pedido falla antes de que FutureBuilder alcance a escucharlo —y
+  /// falla enseguida cuando no hay conexión— Dart lo considera un error que
+  /// nadie atendió y lo vuelca en la consola como excepción sin capturar.
+  /// ignore() agrega un oyente silencioso; la pantalla igual recibe el error
+  /// y muestra el aviso.
+  Future<List<Mision>> _pedir() {
+    final pedido = obtenerMisiones();
+    pedido.ignore();
+    return pedido;
   }
 
   Future<void> _recargar() async {
-    final pedido = obtenerMisiones();
+    final pedido = _pedir();
     setState(() => _misiones = pedido);
     // Deslizar para actualizar espera a que termine para sacar el indicador.
-    await pedido.catchError((_) => <Mision>[]);
+    // El error ya lo muestra la pantalla, asi que aca no se vuelve a lanzar.
+    await pedido.then((_) {}, onError: (_, __) {});
   }
 
   @override

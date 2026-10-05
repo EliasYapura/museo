@@ -4,4 +4,13 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Android bloquea el trafico HTTP sin cifrar desde Android 9. La API de
+         desarrollo corre en http://10.0.2.2:3000 (la PC vista desde el
+         emulador), asi que hay que permitirlo explicitamente.
+
+         Va solo en el manifiesto de depuracion: la version que se publique
+         sigue exigiendo HTTPS, que es lo que va a usar la API desplegada
+         (TEC04). -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>
