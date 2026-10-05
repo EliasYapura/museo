@@ -15,13 +15,29 @@ class PantallaMisiones extends StatefulWidget {
   State<PantallaMisiones> createState() => _PantallaMisionesState();
 }
 
-class _PantallaMisionesState extends State<PantallaMisiones> {
+class _PantallaMisionesState extends State<PantallaMisiones> with WidgetsBindingObserver {
   late Future<List<Mision>> _misiones;
 
   @override
   void initState() {
     super.initState();
+    // Volver a la app desde segundo plano no rearma la pantalla: Android deja
+    // el proceso vivo con los datos ya cargados. Escuchando el ciclo de vida,
+    // la lista se actualiza sola al volver, que es lo que uno espera despues
+    // de haber publicado una mision desde el panel.
+    WidgetsBinding.instance.addObserver(this);
     _misiones = _pedir();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState estado) {
+    if (estado == AppLifecycleState.resumed) _recargar();
   }
 
   /// Pide las misiones dejando el error "atendido".
@@ -53,7 +69,7 @@ class _PantallaMisionesState extends State<PantallaMisiones> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _Encabezado(),
+            _Encabezado(alActualizar: _recargar),
             Expanded(
               child: FutureBuilder<List<Mision>>(
                 future: _misiones,
@@ -172,7 +188,12 @@ class _Aviso extends StatelessWidget {
 //  Encabezado: título + guarda ornamental + bajada
 // -----------------------------------------------------------------------------
 class _Encabezado extends StatelessWidget {
-  const _Encabezado();
+  /// Actualiza la lista. Deslizar hacia abajo hace lo mismo, pero el gesto no
+  /// se ve: hace falta un botón para que se sepa que la lista se puede
+  /// actualizar, y para poder hacerlo con el mouse en el emulador.
+  final Future<void> Function() alActualizar;
+
+  const _Encabezado({required this.alActualizar});
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +207,19 @@ class _Encabezado extends StatelessWidget {
             style: AppText.sans(size: 13).copyWith(letterSpacing: 0.6),
           ),
           const SizedBox(height: 6),
-          Text('Exploradores del Museo', style: AppText.serif(size: 26)),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Exploradores del Museo', style: AppText.serif(size: 26)),
+              ),
+              IconButton(
+                onPressed: alActualizar,
+                icon: const Icon(Icons.refresh),
+                color: AppColors.acento,
+                tooltip: 'Actualizar las misiones',
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
 
           // Guarda escalonada inspirada en la ornamentación americanista
