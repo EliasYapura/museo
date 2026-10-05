@@ -15,30 +15,18 @@ class PantallaMisiones extends StatefulWidget {
   State<PantallaMisiones> createState() => _PantallaMisionesState();
 }
 
-class _PantallaMisionesState extends State<PantallaMisiones> with WidgetsBindingObserver {
+class _PantallaMisionesState extends State<PantallaMisiones> {
   late Future<List<Mision>> _misiones;
 
   @override
   void initState() {
     super.initState();
-    // Volver a la app desde segundo plano no rearma la pantalla: Android deja
-    // el proceso vivo con los datos ya cargados. Escuchando el ciclo de vida,
-    // la lista se actualiza sola al volver, que es lo que uno espera despues
-    // de haber publicado una mision desde el panel.
-    WidgetsBinding.instance.addObserver(this);
     _misiones = _pedir();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState estado) {
-    if (estado == AppLifecycleState.resumed) _recargar();
-  }
+  // La lista no se recarga sola al volver de segundo plano: salir de la app
+  // sin querer no tiene que deshacer lo que el visitante estaba haciendo.
+  // Para actualizar estan el boton del encabezado y deslizar hacia abajo.
 
   /// Pide las misiones dejando el error "atendido".
   ///
@@ -55,7 +43,13 @@ class _PantallaMisionesState extends State<PantallaMisiones> with WidgetsBinding
 
   Future<void> _recargar() async {
     final pedido = _pedir();
-    setState(() => _misiones = pedido);
+    // Con cuerpo entre llaves y no con flecha: la flecha devolveria el valor
+    // de la asignacion, que es el Future, y setState rechaza un callback que
+    // devuelva algo. La asignacion se hace igual pero la pantalla no se
+    // vuelve a dibujar, asi que el boton parece no hacer nada.
+    setState(() {
+      _misiones = pedido;
+    });
     // Deslizar para actualizar espera a que termine para sacar el indicador.
     // El error ya lo muestra la pantalla, asi que aca no se vuelve a lanzar.
     await pedido.then((_) {}, onError: (_, __) {});
