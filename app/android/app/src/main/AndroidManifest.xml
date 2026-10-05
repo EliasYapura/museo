@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- La app pide las misiones a la API, asi que necesita salir a la red.
+         Flutter solo la declara para depuracion; sin esto, la version
+         instalada de verdad no podria conectarse. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="flutter_application_1"
+        android:label="Exploradores del Museo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
