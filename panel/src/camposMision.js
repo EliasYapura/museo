@@ -3,11 +3,20 @@
 // porque la recarga en caliente de Vite (Fast Refresh) solo funciona bien
 // cuando un archivo .jsx exporta unicamente componentes.
 
-export const CAMPOS_VACIOS = { nombre: '', descripcion: '', duracion_estimada: '', imagen_url: '' }
+import { DIFICULTAD_POR_DEFECTO } from './dificultades.js'
+
+export const CAMPOS_VACIOS = {
+  nombre: '',
+  descripcion: '',
+  duracion_estimada: '',
+  dificultad: DIFICULTAD_POR_DEFECTO,
+  imagen_url: '',
+}
 
 export const camposDesdeMision = (mision) => ({
   nombre: mision.nombre,
   descripcion: mision.descripcion,
   duracion_estimada: String(mision.duracion_estimada),
+  dificultad: mision.dificultad,
   imagen_url: mision.imagen_url ?? '',
 })

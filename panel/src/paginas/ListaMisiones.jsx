@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { pedir } from '../api.js'
+import { nombreDeDificultad } from '../dificultades.js'
 import { formatearFecha } from '../fechas.js'
 import { useSesion } from '../sesion/contexto.js'
 
@@ -125,6 +126,7 @@ export default function ListaMisiones() {
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Nombre</th>
                 <th scope="col" className="px-4 py-3 font-medium">Duración</th>
+                <th scope="col" className="px-4 py-3 font-medium">Dificultad</th>
                 <th scope="col" className="px-4 py-3 font-medium">Desafíos</th>
                 <th scope="col" className="px-4 py-3 font-medium">Estado</th>
                 <th scope="col" className="px-4 py-3 font-medium">Última modificación</th>
@@ -142,6 +144,7 @@ export default function ListaMisiones() {
                 <tr>
                   <td className="px-4 py-3 font-medium">{mision.nombre}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{mision.duracion_estimada} min</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{nombreDeDificultad(mision.dificultad)}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {mision.desafios === 0 ? (
                       <Link
@@ -216,7 +219,7 @@ export default function ListaMisiones() {
 
                 {confirmando === mision.id && (
                   <tr>
-                    <td colSpan={6} className="px-4 pb-3">
+                    <td colSpan={7} className="px-4 pb-3">
                       <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3">
                         <p className="text-sm text-amber-900">
                           “{mision.nombre}” va a dejar de verse en este listado. Sus desafíos y el

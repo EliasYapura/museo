@@ -72,9 +72,9 @@ curl http://localhost:3000/health
 | GET | `/auth/perfil` | con token | Datos del usuario autenticado |
 | GET | `/publico/misiones` | público | Misiones publicadas, para la app del visitante: sin respuestas ni datos de administración |
 | GET | `/misiones` | administrador | Lista las misiones no archivadas, con cuántos desafíos tiene cada una |
-| POST | `/misiones` | administrador | Crea una misión, siempre inactiva |
+| POST | `/misiones` | administrador | Crea una misión, siempre inactiva; `dificultad` es opcional y vale `media` si no se manda |
 | GET | `/misiones/:id` | administrador | Datos de una misión |
-| PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración e imagen |
+| PUT | `/misiones/:id` | administrador | Modifica nombre, descripción, duración, dificultad e imagen |
 | PATCH | `/misiones/:id/activa` | administrador | Publica (`{ "activa": true }`) o despublica la misión; 409 si no tiene desafíos |
 | PATCH | `/misiones/:id/archivada` | administrador | Archiva la misión (`{ "archivada": true }`) o la devuelve al listado |
 | GET | `/misiones/:id/desafios` | administrador | Lista los desafíos de una misión, en orden |
