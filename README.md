@@ -138,6 +138,62 @@ En el navegador hace falta además que la API autorice ese origen: es la
 variable `APP_ORIGIN` del backend, que por defecto vale `http://localhost:5000`.
 Por eso el `--web-port=5000`.
 
+## Despliegue
+
+La API se publica en Render, el panel en Vercel y la base ya está en Supabase.
+Los dos primeros se despliegan solos con cada `push` a `main`.
+
+### API en Render
+
+La configuración está en [`render.yaml`](render.yaml). Las variables marcadas
+`sync: false` se cargan desde el panel de Render y nunca se versionan:
+
+| Variable | Valor |
+| --- | --- |
+| `DATABASE_URL` | la cadena de conexión de Supabase (Session pooler) |
+| `JWT_SECRET` | uno nuevo, distinto al de desarrollo, de 32 caracteres o más |
+| `PANEL_ORIGIN` | la dirección del panel en Vercel |
+| `APP_ORIGIN` | `http://localhost:5000`, para probar la app en el navegador |
+
+Para generar un secreto nuevo:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+El secreto de producción tiene que ser distinto al de desarrollo: si se
+filtrara el del repositorio local, cualquiera podría fabricar tokens de
+administrador contra el servidor publicado.
+
+### Panel en Vercel
+
+El proyecto apunta a la carpeta `panel`. Necesita una sola variable:
+
+| Variable | Valor |
+| --- | --- |
+| `VITE_API_URL` | la dirección de la API en Render, sin barra final |
+
+[`panel/vercel.json`](panel/vercel.json) manda todas las direcciones al
+`index.html`. Sin esa regla el panel funciona al entrar, pero recargar en una
+pantalla interna como `/misiones` devuelve 404: Vercel busca un archivo con ese
+nombre y las rutas las resuelve react-router dentro del navegador.
+
+### App del visitante
+
+No se despliega: es una app, no una página. Se compila apuntando a la API:
+
+```bash
+flutter build apk --dart-define=API_URL=https://<api-en-render>
+```
+
+### Dos cosas del plan gratuito
+
+- **Render apaga el servicio** tras unos minutos sin pedidos. El siguiente
+  tarda cerca de un minuto en responder, por eso la app espera 30 segundos
+  antes de dar por perdida la conexión.
+- **Supabase pausa el proyecto** tras varios días sin uso. Si falla con
+  `tenant or user not found`, hay que restaurarlo desde el panel de Supabase.
+
 ## Convenciones del repositorio
 
 Cada commit lleva al principio el código de la historia de usuario que
