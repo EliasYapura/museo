@@ -1,0 +1,37 @@
+# Despliegue de la API en Render (TEC04).
+#
+# Describe el servicio para no tener que recordar la configuracion ni
+# repetirla a mano si hay que rehacerlo.
+#
+# Los secretos NO van aca: las variables marcadas con `sync: false` se cargan
+# desde el panel de Render y nunca entran al repositorio.
+services:
+  - type: web
+    name: exploradores-museo-api
+    runtime: node
+    plan: free
+    region: oregon
+    # El repositorio tiene tres proyectos; este servicio es solo el backend.
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    # Render consulta esta ruta para saber si el servicio esta sano. /health
+    # no toca la base, asi que responde aunque la base este caida o pausada.
+    healthCheckPath: /health
+    envVars:
+      # El codigo usa node --env-file-if-exists, que necesita Node 22.9 o mas.
+      - key: NODE_VERSION
+        value: "22.9.0"
+      # Cadena de conexion de Supabase (Session pooler).
+      - key: DATABASE_URL
+        sync: false
+      # Secreto para firmar los tokens. Tiene que ser distinto al de
+      # desarrollo y de al menos 32 caracteres.
+      - key: JWT_SECRET
+        sync: false
+      # Direccion del panel desplegado, para CORS.
+      - key: PANEL_ORIGIN
+        sync: false
+      # Origen de la app del visitante si se la corre en el navegador.
+      - key: APP_ORIGIN
+        sync: false

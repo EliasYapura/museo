@@ -39,7 +39,11 @@ class ErrorApi implements Exception {
   String toString() => mensaje;
 }
 
-const _espera = Duration(seconds: 10);
+/// El plan gratuito de Render apaga el servicio tras unos minutos sin uso y el
+/// primer pedido lo despierta, lo que puede tardar cerca de un minuto. Con una
+/// espera corta, abrir la app por primera vez en el dia mostraria un error de
+/// conexion que no es tal.
+const _espera = Duration(seconds: 30);
 
 /// Pide una dirección de la API y devuelve el JSON ya convertido.
 ///
