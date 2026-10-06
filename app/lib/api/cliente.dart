@@ -41,17 +41,21 @@ class ErrorApi implements Exception {
 
 const _espera = Duration(seconds: 10);
 
-/// GET /publico/misiones — las misiones publicadas (VIS01).
-Future<List<Mision>> obtenerMisiones() async {
+/// Pide una dirección de la API y devuelve el JSON ya convertido.
+///
+/// [mensaje404] permite que cada pedido explique a su manera un 404; sin él,
+/// se trata como cualquier otra respuesta inesperada.
+Future<Map<String, dynamic>> _pedirJson(String ruta, {String? mensaje404}) async {
   final http.Response respuesta;
   try {
-    respuesta = await http.get(Uri.parse('$apiUrl/publico/misiones')).timeout(_espera);
+    respuesta = await http.get(Uri.parse('$apiUrl$ruta')).timeout(_espera);
   } catch (_) {
     // Servidor apagado, sin red, se agotó la espera o, en el navegador, un
     // bloqueo por CORS: para el visitante son todos el mismo problema.
     throw const ErrorApi('No se pudo conectar con el museo. Revisá tu conexión.');
   }
 
+  if (respuesta.statusCode == 404 && mensaje404 != null) throw ErrorApi(mensaje404);
   if (respuesta.statusCode != 200) {
     throw const ErrorApi('El museo no está respondiendo. Probá de nuevo en un rato.');
   }
@@ -60,10 +64,34 @@ Future<List<Mision>> obtenerMisiones() async {
     // utf8.decode y no respuesta.body: sin esto los acentos y las eñes
     // llegan rotos, porque body asume latin-1 cuando la respuesta no declara
     // el juego de caracteres.
-    final cuerpo = jsonDecode(utf8.decode(respuesta.bodyBytes)) as Map<String, dynamic>;
+    return jsonDecode(utf8.decode(respuesta.bodyBytes)) as Map<String, dynamic>;
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /publico/misiones — las misiones publicadas (VIS01).
+Future<List<Mision>> obtenerMisiones() async {
+  final cuerpo = await _pedirJson('/publico/misiones');
+  try {
     return (cuerpo['misiones'] as List)
         .map((json) => Mision.desdeJson(json as Map<String, dynamic>))
         .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /publico/misiones/:id — el detalle de una misión (VIS03).
+Future<Mision> obtenerMision(int id) async {
+  final cuerpo = await _pedirJson(
+    '/publico/misiones/$id',
+    // La misión existía cuando se abrió el listado: si ahora no está, es
+    // porque el museo la bajó mientras tanto.
+    mensaje404: 'Esta misión ya no está disponible.',
+  );
+  try {
+    return Mision.desdeJson(cuerpo['mision'] as Map<String, dynamic>);
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }

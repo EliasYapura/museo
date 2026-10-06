@@ -34,6 +34,10 @@ class Mision {
   /// tenga un objeto asociado, así que puede no venir.
   final String? sala;
 
+  /// Todas las salas por las que pasa la misión, en el orden del recorrido del
+  /// museo. Solo viene en el detalle (VIS03); en el listado llega vacía.
+  final List<String> salas;
+
   const Mision({
     required this.id,
     required this.nombre,
@@ -44,6 +48,7 @@ class Mision {
     required this.desafios,
     required this.puntos,
     required this.sala,
+    this.salas = const [],
   });
 
   /// Mientras las misiones no tengan imagen, la miniatura se elige por el id:
@@ -69,6 +74,8 @@ class Mision {
       desafios: json['desafios'] as int,
       puntos: json['puntos'] as int,
       sala: json['sala'] as String?,
+      // El listado no manda salas; el detalle si.
+      salas: ((json['salas'] as List?) ?? const []).map((s) => s as String).toList(),
     );
   }
 }
