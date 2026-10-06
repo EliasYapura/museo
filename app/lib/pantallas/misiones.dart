@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/mision.dart';
+import 'detalle_mision.dart';
 
 /// Listado de misiones disponibles (VIS01).
 ///
@@ -105,7 +106,14 @@ class _PantallaMisionesState extends State<PantallaMisiones> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                       itemCount: misiones.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (_, i) => _TarjetaMision(mision: misiones[i]),
+                      itemBuilder: (_, i) => _TarjetaMision(
+                        mision: misiones[i],
+                        alTocar: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PantallaDetalleMision(mision: misiones[i]),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -241,7 +249,8 @@ class _Encabezado extends StatelessWidget {
 // -----------------------------------------------------------------------------
 class _TarjetaMision extends StatelessWidget {
   final Mision mision;
-  const _TarjetaMision({required this.mision});
+  final VoidCallback alTocar;
+  const _TarjetaMision({required this.mision, required this.alTocar});
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +262,13 @@ class _TarjetaMision extends StatelessWidget {
           'Duración estimada ${mision.duracionMin} minutos. '
           'Dificultad ${mision.dificultad.etiqueta}. '
           '${mision.puntos} puntos.',
-      child: Container(
+      // excludeSemantics: los datos ya están en la etiqueta de arriba; sin
+      // esto el lector de pantalla los repetiría uno por uno.
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: alTocar,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         height: 128,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -299,6 +314,7 @@ class _TarjetaMision extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

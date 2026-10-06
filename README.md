@@ -71,6 +71,7 @@ curl http://localhost:3000/health
 | POST | `/auth/login` | público | Devuelve un JWT válido por 8 horas |
 | GET | `/auth/perfil` | con token | Datos del usuario autenticado |
 | GET | `/publico/misiones` | público | Misiones publicadas, para la app del visitante: sin respuestas ni datos de administración |
+| GET | `/publico/misiones/:id` | público | Detalle de una misión publicada, con las salas del recorrido; 404 si está en borrador o archivada |
 | GET | `/misiones` | administrador | Lista las misiones no archivadas, con cuántos desafíos tiene cada una |
 | POST | `/misiones` | administrador | Crea una misión, siempre inactiva; `dificultad` es opcional y vale `media` si no se manda |
 | GET | `/misiones/:id` | administrador | Datos de una misión |
