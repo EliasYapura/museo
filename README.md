@@ -140,6 +140,12 @@ Por eso el `--web-port=5000`.
 
 ## Despliegue
 
+| Qué | Dónde |
+| --- | --- |
+| API | https://exploradores-museo-api.onrender.com |
+| Panel | https://museo-zeta.vercel.app |
+| Base de datos | Supabase, proyecto `exploradores-museo` |
+
 La API se publica en Render, el panel en Vercel y la base ya está en Supabase.
 Los dos primeros se despliegan solos con cada `push` a `main`.
 
