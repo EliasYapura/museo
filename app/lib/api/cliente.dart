@@ -79,7 +79,10 @@ Future<Map<String, dynamic>> _pedirJson(
     throw const ErrorApi('No se pudo conectar con el museo. Revisá tu conexión.');
   }
 
-  if (respuesta.statusCode == 401) {
+  // Un 401 significa cosas distintas según si el pedido llevaba token: con
+  // token, que venció; sin token, que las credenciales no son correctas, y
+  // ahí el mensaje de la API es el que hay que mostrar.
+  if (respuesta.statusCode == 401 && token != null) {
     throw const ErrorApi('Tu sesión venció. Ingresá de nuevo.', sesionVencida: true);
   }
   if (respuesta.statusCode == 404 && mensaje404 != null) throw ErrorApi(mensaje404);
