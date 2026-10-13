@@ -58,10 +58,11 @@ class _PantallaMisionesState extends State<PantallaMisiones> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+    // Sin Scaffold ni barra inferior: las pone PantallaInicio, que es la que
+    // alterna entre esta pestaña y la de perfil.
+    return SafeArea(
+      bottom: false,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Encabezado(alActualizar: _recargar),
@@ -120,9 +121,7 @@ class _PantallaMisionesState extends State<PantallaMisiones> {
               ),
             ),
           ],
-        ),
       ),
-      bottomNavigationBar: const _BarraNavegacion(),
     );
   }
 }
@@ -354,81 +353,6 @@ class _FilaMeta extends StatelessWidget {
             size: 12.5,
             color: AppColors.acento,
             peso: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-//  Navegación inferior
-//  Decorativa por ahora: Progreso es del Sprint 4, Insignias del 5 y Perfil
-//  depende del inicio de sesión del visitante.
-// -----------------------------------------------------------------------------
-class _BarraNavegacion extends StatelessWidget {
-  const _BarraNavegacion();
-
-  @override
-  Widget build(BuildContext context) {
-    const items = [
-      (Icons.explore_outlined, 'Misiones'),
-      (Icons.bar_chart_rounded, 'Progreso'),
-      (Icons.hexagon_outlined, 'Insignias'),
-      (Icons.person_outline, 'Perfil'),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.navFondo,
-        border: Border(top: BorderSide(color: AppColors.borde)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                _ItemNav(
-                  icono: items[i].$1,
-                  etiqueta: items[i].$2,
-                  activo: i == 0,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ItemNav extends StatelessWidget {
-  final IconData icono;
-  final String etiqueta;
-  final bool activo;
-
-  const _ItemNav({
-    required this.icono,
-    required this.etiqueta,
-    required this.activo,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = activo ? AppColors.acento : AppColors.textoInactivo;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icono, size: 22, color: color),
-        const SizedBox(height: 4),
-        Text(
-          etiqueta,
-          style: AppText.sans(
-            size: 11,
-            color: color,
-            peso: activo ? FontWeight.w700 : FontWeight.w400,
           ),
         ),
       ],
