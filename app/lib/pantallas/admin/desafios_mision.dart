@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/desafio.dart';
 import '../../sesion/sesion.dart';
+import 'desafio_admin.dart';
 
 /// Los desafíos de una misión, en el orden en que los resuelve el visitante.
 ///
@@ -40,6 +41,16 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
     // reporte como no atendido.
     pedido.ignore();
     return pedido;
+  }
+
+  /// Abre el alta o la edición. Si hubo cambios, el listado se vuelve a pedir.
+  Future<void> _abrir({Desafio? desafio}) async {
+    final huboCambios = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PantallaDesafioAdmin(misionId: widget.misionId, desafio: desafio),
+      ),
+    );
+    if (huboCambios == true) await _recargar();
   }
 
   Future<void> _recargar() async {
@@ -115,6 +126,16 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
           },
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _abrir(),
+        backgroundColor: AppColors.acento,
+        foregroundColor: AppColors.fondo,
+        icon: const Icon(Icons.add),
+        label: Text(
+          'Nuevo desafío',
+          style: AppText.sans(size: 14, color: AppColors.fondo, peso: FontWeight.w700),
+        ),
+      ),
     );
   }
 
@@ -163,7 +184,10 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         itemCount: desafios.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _Tarjeta(desafio: desafios[i]),
+        itemBuilder: (_, i) => _Tarjeta(
+          desafio: desafios[i],
+          alTocar: () => _abrir(desafio: desafios[i]),
+        ),
       ),
     );
   }
@@ -171,12 +195,13 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
 
 class _Tarjeta extends StatelessWidget {
   final Desafio desafio;
+  final VoidCallback alTocar;
 
-  const _Tarjeta({required this.desafio});
+  const _Tarjeta({required this.desafio, required this.alTocar});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final contenido = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.superficie,
@@ -264,6 +289,15 @@ class _Tarjeta extends StatelessWidget {
           ],
         ],
       ),
+    );
+
+    // La tarjeta entera abre la edición, igual que en el listado de misiones:
+    // en un teléfono un botón al costado de cada fila no entra y se toca el
+    // equivocado.
+    return InkWell(
+      onTap: alTocar,
+      borderRadius: BorderRadius.circular(16),
+      child: contenido,
     );
   }
 }

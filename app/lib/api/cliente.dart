@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../modelos/desafio.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
+import '../modelos/objeto.dart';
 import '../sesion/sesion.dart';
 
 /// Dirección de la API.
@@ -302,6 +303,52 @@ Future<({String mision, List<Desafio> desafios})> listarDesafios(String token, i
           .map((json) => Desafio.desdeJson(json as Map<String, dynamic>))
           .toList(),
     );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// POST /misiones/:id/desafios — agrega un desafío al final de la misión.
+///
+/// El orden lo calcula la API: el desafío nuevo va último.
+Future<Desafio> crearDesafio(String token, int misionId, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$misionId/desafios',
+    token: token,
+    metodo: 'POST',
+    cuerpo: datos,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _desafioDesde(cuerpo);
+}
+
+/// PUT /desafios/:id — guarda los cambios de un desafío.
+Future<Desafio> editarDesafio(String token, int id, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/desafios/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Ese desafío ya no existe.',
+  );
+  return _desafioDesde(cuerpo);
+}
+
+Desafio _desafioDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return Desafio.desdeJson(cuerpo['desafio'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /objetos — las piezas del museo, para elegir la de un desafío.
+Future<List<Objeto>> listarObjetos(String token) async {
+  final cuerpo = await _pedirJson('/objetos', token: token);
+  try {
+    return (cuerpo['objetos'] as List)
+        .map((json) => Objeto.desdeJson(json as Map<String, dynamic>))
+        .toList();
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
