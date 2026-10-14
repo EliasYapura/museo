@@ -434,6 +434,22 @@ Future<({Objeto objeto, bool modificado})> editarObjeto(
   return (objeto: _objetoDesde(cuerpo), modificado: cuerpo['modificado'] == true);
 }
 
+/// PATCH /objetos/:id/codigo — le genera un código nuevo a la pieza.
+///
+/// Va en su propia ruta y no en el formulario para que el código no se pueda
+/// cambiar sin querer al guardar los datos: cambiarlo deja inservible la
+/// etiqueta que ya está puesta junto a la pieza.
+Future<Objeto> regenerarCodigo(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id/codigo',
+    token: token,
+    metodo: 'PATCH',
+    cuerpo: const {},
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  return _objetoDesde(cuerpo);
+}
+
 Objeto _objetoDesde(Map<String, dynamic> cuerpo) {
   try {
     return Objeto.desdeJson(cuerpo['objeto'] as Map<String, dynamic>);
