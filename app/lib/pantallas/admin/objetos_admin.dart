@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
+import 'objeto_admin.dart';
 
 /// Las piezas del museo, en el orden del recorrido.
 ///
@@ -34,6 +35,14 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
     // reporte como no atendido.
     pedido.ignore();
     return pedido;
+  }
+
+  /// Abre el alta o la edición. Si hubo cambios, el listado se vuelve a pedir.
+  Future<void> _abrir({Objeto? objeto}) async {
+    final huboCambios = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => PantallaObjetoAdmin(objeto: objeto)),
+    );
+    if (huboCambios == true) await _recargar();
   }
 
   Future<void> _recargar() async {
@@ -143,7 +152,10 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                       itemCount: objetos.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _Tarjeta(objeto: objetos[i]),
+                      itemBuilder: (_, i) => _Tarjeta(
+                        objeto: objetos[i],
+                        alTocar: () => _abrir(objeto: objetos[i]),
+                      ),
                     ),
                   );
                 },
@@ -152,14 +164,25 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _abrir(),
+        backgroundColor: AppColors.acento,
+        foregroundColor: AppColors.fondo,
+        icon: const Icon(Icons.add),
+        label: Text(
+          'Nuevo objeto',
+          style: AppText.sans(size: 14, color: AppColors.fondo, peso: FontWeight.w700),
+        ),
+      ),
     );
   }
 }
 
 class _Tarjeta extends StatelessWidget {
   final Objeto objeto;
+  final VoidCallback alTocar;
 
-  const _Tarjeta({required this.objeto});
+  const _Tarjeta({required this.objeto, required this.alTocar});
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +190,7 @@ class _Tarjeta extends StatelessWidget {
     // encontrarlo para reactivarlo.
     final color = objeto.activo ? AppColors.textoPrimario : AppColors.textoInactivo;
 
-    return Container(
+    final contenido = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.superficie,
@@ -244,6 +267,15 @@ class _Tarjeta extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    // La tarjeta entera abre la pieza, igual que en los otros listados: en un
+    // teléfono un botón al costado de cada fila no entra y se toca el
+    // equivocado.
+    return InkWell(
+      onTap: alTocar,
+      borderRadius: BorderRadius.circular(16),
+      child: contenido,
     );
   }
 }
