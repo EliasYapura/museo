@@ -158,6 +158,25 @@ class _FormularioMisionState extends State<FormularioMision> {
     return null;
   }
 
+  /// El aviso de arriba de todo: el error general o la confirmación.
+  ///
+  /// Ocupa siempre un lugar en la columna, aunque esté vacío. Si apareciera y
+  /// desapareciera, todos los campos de abajo se correrían una posición;
+  /// Flutter empareja los hijos de una columna por posición, así que al no
+  /// coincidir los rearma de cero y los campos pierden el error que la
+  /// validación acababa de marcarles.
+  Widget _avisoSuperior() {
+    final esError = _error.isNotEmpty;
+    final texto = esError ? _error : _aviso;
+    // Siempre un Padding, aunque no haya nada que decir: si cambiara de tipo
+    // de widget, Flutter dejaria de emparejar los hijos de la columna desde
+    // arriba y rearmaria los campos que siguen.
+    return Padding(
+      padding: EdgeInsets.only(bottom: texto.isEmpty ? 0 : 18),
+      child: texto.isEmpty ? const SizedBox.shrink() : Aviso(texto, esError: esError),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -169,17 +188,11 @@ class _FormularioMisionState extends State<FormularioMision> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_error.isNotEmpty) ...[
-            Aviso(_error),
-            const SizedBox(height: 18),
-          ],
-          if (_aviso.isNotEmpty) ...[
-            Aviso(_aviso, esError: false),
-            const SizedBox(height: 18),
-          ],
+          _avisoSuperior(),
 
           const EtiquetaCampo('Nombre', obligatorio: true),
           TextFormField(
+            key: const ValueKey('nombre'),
             controller: _nombre,
             style: estiloCampo,
             decoration: decoracionCampo(),
@@ -191,6 +204,7 @@ class _FormularioMisionState extends State<FormularioMision> {
 
           const EtiquetaCampo('Descripción', obligatorio: true),
           TextFormField(
+            key: const ValueKey('descripcion'),
             controller: _descripcion,
             style: estiloCampo,
             decoration: decoracionCampo(),
@@ -204,6 +218,7 @@ class _FormularioMisionState extends State<FormularioMision> {
 
           const EtiquetaCampo('Duración estimada (minutos)', obligatorio: true),
           TextFormField(
+            key: const ValueKey('duracion'),
             controller: _duracion,
             style: estiloCampo,
             decoration: decoracionCampo(pista: 'Entre $duracionMinima y $duracionMaxima'),
@@ -255,6 +270,7 @@ class _FormularioMisionState extends State<FormularioMision> {
 
           const EtiquetaCampo('Imagen de portada', opcional: true),
           TextFormField(
+            key: const ValueKey('imagen'),
             controller: _imagen,
             style: estiloCampo,
             decoration: decoracionCampo(pista: 'https://…'),
