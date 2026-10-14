@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/desafio.dart';
 import '../../sesion/sesion.dart';
+import '../../widgets/formulario.dart';
 import 'formulario_desafio.dart';
 
 /// Crear un desafío para una misión o editar uno existente.
@@ -18,7 +19,16 @@ class PantallaDesafioAdmin extends StatefulWidget {
   final int misionId;
   final Desafio? desafio;
 
-  const PantallaDesafioAdmin({super.key, required this.misionId, this.desafio});
+  /// Qué lugar ocupa en la misión, para el título. Es la posición en el
+  /// listado y no la columna orden: al borrar uno, la base deja el hueco.
+  final int? posicion;
+
+  const PantallaDesafioAdmin({
+    super.key,
+    required this.misionId,
+    this.desafio,
+    this.posicion,
+  });
 
   @override
   State<PantallaDesafioAdmin> createState() => _PantallaDesafioAdminState();
@@ -28,16 +38,10 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
   /// Se marca al guardar, para avisarle al listado que tiene que recargar.
   bool _huboCambios = false;
 
-  /// El orden del desafío, que se muestra en el título al editar.
-  int? _orden;
+  bool _borrando = false;
+  String _error = '';
 
   bool get _esAlta => widget.desafio == null;
-
-  @override
-  void initState() {
-    super.initState();
-    _orden = widget.desafio?.orden;
-  }
 
   Future<String?> _guardar(Map<String, dynamic> datos) async {
     final sesion = ProveedorSesion.de(context);
@@ -60,6 +64,78 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
     // A diferencia de las misiones, la API de desafíos no avisa si hubo
     // cambios de verdad, así que el aviso no puede distinguirlo.
     return 'Cambios guardados.';
+  }
+
+  /// Borra el desafío, después de confirmar, y vuelve al listado.
+  Future<void> _borrar() async {
+    final sesion = ProveedorSesion.de(context);
+    final confirmado = await _confirmarBorrado();
+    if (confirmado != true || !mounted) return;
+
+    setState(() {
+      _borrando = true;
+      _error = '';
+    });
+    try {
+      final despublicada = await borrarDesafio(sesion.token!, widget.desafio!.id);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            // Quedarse sin desafíos despublica la misión. Es un cambio que no
+            // se pidió y que pasa en otra pantalla, así que se avisa acá.
+            despublicada
+                ? 'Desafío borrado. La misión volvió a borrador porque se quedó sin desafíos.'
+                : 'Desafío borrado.',
+          ),
+        ),
+      );
+    } on ErrorApi catch (error) {
+      if (!mounted) return;
+      if (error.sesionVencida) {
+        sesion.cerrarSesion();
+        Navigator.of(context).pop(_huboCambios);
+        return;
+      }
+      setState(() => _error = error.mensaje);
+    } catch (error, pila) {
+      debugPrint('Fallo al borrar el desafío: $error\n$pila');
+      if (mounted) setState(() => _error = 'No se pudo borrar el desafío.');
+    } finally {
+      if (mounted) setState(() => _borrando = false);
+    }
+  }
+
+  /// Borrar un desafío no se deshace, así que se pregunta antes.
+  Future<bool?> _confirmarBorrado() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.superficie,
+        title: Text('¿Borrar el desafío?', style: AppText.serif(size: 19)),
+        content: Text(
+          'Se borra de la misión y no se puede deshacer. Los demás quedan en el '
+          'mismo orden.\n\n'
+          'Si era el único, la misión vuelve a borrador: una misión sin desafíos '
+          'no se puede publicar.',
+          style: AppText.sans(size: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancelar', style: AppText.sans(size: 14, peso: FontWeight.w700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Sí, borrar',
+              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -98,7 +174,7 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                   children: [
                     Text(
-                      _esAlta ? 'Nuevo desafío' : 'Desafío ${_orden ?? ''}'.trim(),
+                      _esAlta ? 'Nuevo desafío' : 'Desafío ${widget.posicion ?? ''}'.trim(),
                       style: AppText.serif(size: 24),
                     ),
                     const SizedBox(height: 14),
@@ -113,6 +189,36 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
                       alGuardar: _guardar,
                       textoBoton: _esAlta ? 'Agregar desafío' : 'Guardar cambios',
                     ),
+                    // Borrar va aparte del formulario y sólo al editar: en el
+                    // alta no hay nada que borrar todavía.
+                    if (!_esAlta) ...[
+                      const SizedBox(height: 26),
+                      if (_error.isNotEmpty) ...[
+                        Aviso(_error),
+                        const SizedBox(height: 12),
+                      ],
+                      const Divider(color: AppColors.borde, height: 1),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _borrando ? null : _borrar,
+                          icon: Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: _borrando ? AppColors.textoInactivo : AppColors.dificil,
+                          ),
+                          label: Text(
+                            _borrando ? 'Borrando…' : 'Borrar desafío',
+                            style: AppText.sans(
+                              size: 13.5,
+                              color: _borrando ? AppColors.textoInactivo : AppColors.dificil,
+                              peso: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -82,6 +82,7 @@ Future<Map<String, dynamic>> _pedirJson(
       'POST' => http.post(uri, headers: cabeceras, body: cuerpoCodificado),
       'PUT' => http.put(uri, headers: cabeceras, body: cuerpoCodificado),
       'PATCH' => http.patch(uri, headers: cabeceras, body: cuerpoCodificado),
+      'DELETE' => http.delete(uri, headers: cabeceras),
       _ => http.get(uri, headers: cabeceras),
     };
     respuesta = await pedido.timeout(_espera);
@@ -340,6 +341,42 @@ Desafio _desafioDesde(Map<String, dynamic> cuerpo) {
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
+}
+
+/// PUT /misiones/:id/desafios/orden — cambia el orden de los desafíos.
+///
+/// Se manda la lista completa de ids en el orden deseado y no "subí este": así
+/// el servidor tiene una sola verdad, el orden que llega es el final. La API
+/// devuelve los desafíos ya renumerados.
+Future<List<Desafio>> reordenarDesafios(String token, int misionId, List<int> ids) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$misionId/desafios/orden',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: {'ids': ids},
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  try {
+    return (cuerpo['desafios'] as List)
+        .map((json) => Desafio.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// DELETE /desafios/:id — borra un desafío.
+///
+/// Devuelve si la misión quedó despublicada: quedarse sin desafíos la vuelve a
+/// borrador sola, y eso hay que avisarlo porque no se pidió.
+Future<bool> borrarDesafio(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/desafios/$id',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Ese desafío ya no existe.',
+  );
+  return cuerpo['despublicada'] == true;
 }
 
 /// GET /objetos — las piezas del museo, para elegir la de un desafío.
