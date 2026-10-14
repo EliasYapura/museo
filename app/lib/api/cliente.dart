@@ -240,6 +240,40 @@ Future<({MisionAdmin mision, bool modificada})> editarMision(
   return (mision: _misionDesde(cuerpo), modificada: cuerpo['modificada'] == true);
 }
 
+/// PATCH /misiones/:id/activa — publica o despublica la misión.
+///
+/// Va en su propia ruta y no en el PUT para que guardar el formulario no
+/// publique una misión sin querer.
+///
+/// Si se intenta publicar una sin desafíos la API responde 409 con su propio
+/// mensaje, que ya explica qué falta: se muestra ese y no uno genérico.
+Future<MisionAdmin> cambiarPublicacion(String token, int id, {required bool activa}) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id/activa',
+    token: token,
+    metodo: 'PATCH',
+    cuerpo: {'activa': activa},
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _misionDesde(cuerpo);
+}
+
+/// PATCH /misiones/:id/archivada — archiva la misión.
+///
+/// Es una baja lógica: deja de verse en la administración, pero sus desafíos y
+/// el avance de los visitantes siguen en la base. Archivar también despublica,
+/// lo hace la propia API.
+Future<MisionAdmin> archivarMision(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id/archivada',
+    token: token,
+    metodo: 'PATCH',
+    cuerpo: {'archivada': true},
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _misionDesde(cuerpo);
+}
+
 MisionAdmin _misionDesde(Map<String, dynamic> cuerpo) {
   try {
     return MisionAdmin.desdeJson(cuerpo['mision'] as Map<String, dynamic>);
