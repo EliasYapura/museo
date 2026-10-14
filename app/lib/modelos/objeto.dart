@@ -17,6 +17,38 @@ extension TipoIdentificadorX on TipoIdentificador {
   }
 }
 
+/// Un desafío que usa una pieza, visto desde la pieza.
+///
+/// Es lo que explica por qué una pieza en uso no se puede borrar: cada entrada
+/// es un desafío que quedaría apuntando a algo que ya no existe.
+class UsoDeObjeto {
+  final int id;
+  final String enunciado;
+
+  /// Misión a la que pertenece el desafío.
+  final String mision;
+
+  /// Una misión archivada ya no se ve en la administración, pero su desafío
+  /// sigue usando la pieza igual.
+  final bool misionArchivada;
+
+  const UsoDeObjeto({
+    required this.id,
+    required this.enunciado,
+    required this.mision,
+    required this.misionArchivada,
+  });
+
+  factory UsoDeObjeto.desdeJson(Map<String, dynamic> json) {
+    return UsoDeObjeto(
+      id: json['id'] as int,
+      enunciado: json['enunciado'] as String,
+      mision: (json['mision'] as String?) ?? '',
+      misionArchivada: (json['archivada'] as bool?) ?? false,
+    );
+  }
+}
+
 /// Una pieza del museo.
 ///
 /// Es el mismo modelo que usa el selector de objetos de un desafío, que sólo
