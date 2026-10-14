@@ -5,6 +5,7 @@ import '../../estilo.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
 import 'formulario_objeto.dart';
+import 'identificador_objeto.dart';
 
 /// Cargar una pieza del museo o editar una existente.
 ///
@@ -27,10 +28,14 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
   /// Se marca al guardar, para avisarle al listado que tiene que recargar.
   bool _huboCambios = false;
 
-  /// El nombre del título, que cambia si se lo edita y se guarda.
-  String? _nombreMostrado;
+  /// La pieza como quedó después de la última acción. Mientras sea null vale
+  /// la que trajo el listado.
+  Objeto? _actualizado;
 
   bool get _esAlta => widget.objeto == null;
+
+  /// La versión más nueva que se conoce de la pieza.
+  Objeto? get _pieza => _actualizado ?? widget.objeto;
 
   Future<String?> _guardar(Map<String, dynamic> datos) async {
     final sesion = ProveedorSesion.de(context);
@@ -50,14 +55,24 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
 
     final resultado = await editarObjeto(sesion.token!, widget.objeto!.id, datos);
     _huboCambios = _huboCambios || resultado.modificado;
-    // No se reemplaza nada de la pantalla salvo el título: rearmar el
-    // formulario perdería el aviso de que se guardó.
+    // Se guarda la pieza devuelta, que es lo que miran el título y el bloque
+    // del identificador. El formulario no se rearma: perdería el aviso de que
+    // se guardó.
     if (mounted) {
       setState(() {
-        _nombreMostrado = resultado.objeto.nombre;
+        _actualizado = resultado.objeto;
       });
     }
     return resultado.modificado ? 'Cambios guardados.' : 'No había cambios para guardar.';
+  }
+
+  /// Pide un código nuevo para la pieza y lo deja a la vista.
+  Future<Objeto> _regenerarCodigo() async {
+    final sesion = ProveedorSesion.de(context);
+    final actualizado = await regenerarCodigo(sesion.token!, widget.objeto!.id);
+    _huboCambios = true;
+    if (mounted) setState(() => _actualizado = actualizado);
+    return actualizado;
   }
 
   @override
@@ -96,7 +111,7 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                   children: [
                     Text(
-                      _nombreMostrado ?? widget.objeto?.nombre ?? 'Nueva pieza',
+                      _pieza?.nombre ?? 'Nueva pieza',
                       style: AppText.serif(size: 24),
                     ),
                     if (!_esAlta) ...[
@@ -104,7 +119,7 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
                       // El código no se edita acá: cambiarlo dejaría inservible
                       // la etiqueta que ya está puesta junto a la pieza.
                       Text(
-                        widget.objeto!.codigo,
+                        _pieza!.codigo,
                         style: AppText.sans(size: 13, color: AppColors.acento).copyWith(
                           fontFamily: 'monospace',
                           letterSpacing: 0.5,
@@ -123,6 +138,15 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
                       alGuardar: _guardar,
                       textoBoton: _esAlta ? 'Cargar pieza' : 'Guardar cambios',
                     ),
+                    // El identificador va aparte del formulario y sólo al
+                    // editar: en el alta la pieza todavía no tiene código.
+                    if (!_esAlta) ...[
+                      const SizedBox(height: 30),
+                      IdentificadorObjeto(
+                        objeto: _pieza!,
+                        alRegenerar: _regenerarCodigo,
+                      ),
+                    ],
                   ],
                 ),
               ),
