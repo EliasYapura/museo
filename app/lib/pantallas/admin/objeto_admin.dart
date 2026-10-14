@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
+import 'estado_objeto.dart';
 import 'formulario_objeto.dart';
 import 'identificador_objeto.dart';
 
@@ -64,6 +65,22 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
       });
     }
     return resultado.modificado ? 'Cambios guardados.' : 'No había cambios para guardar.';
+  }
+
+  /// Da de baja o reactiva la pieza.
+  Future<Objeto> _cambiarEstado({required bool activo}) async {
+    final sesion = ProveedorSesion.de(context);
+    final actualizado = await cambiarEstadoObjeto(sesion.token!, widget.objeto!.id, activo: activo);
+    _huboCambios = true;
+    if (mounted) setState(() => _actualizado = actualizado);
+    return actualizado;
+  }
+
+  /// Borra la pieza. El bloque de estado se encarga de confirmar y de volver.
+  Future<void> _borrar() async {
+    final sesion = ProveedorSesion.de(context);
+    await borrarObjeto(sesion.token!, widget.objeto!.id);
+    _huboCambios = true;
   }
 
   /// Pide un código nuevo para la pieza y lo deja a la vista.
@@ -145,6 +162,12 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
                       IdentificadorObjeto(
                         objeto: _pieza!,
                         alRegenerar: _regenerarCodigo,
+                      ),
+                      const SizedBox(height: 12),
+                      EstadoObjeto(
+                        objeto: _pieza!,
+                        alCambiarEstado: _cambiarEstado,
+                        alBorrar: _borrar,
                       ),
                     ],
                   ],

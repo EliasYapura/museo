@@ -100,7 +100,9 @@ Future<Map<String, dynamic>> _pedirJson(
     throw const ErrorApi('Tu sesión venció. Ingresá de nuevo.', sesionVencida: true);
   }
   if (respuesta.statusCode == 404 && mensaje404 != null) throw ErrorApi(mensaje404);
-  // Un 201 es un alta correcta, igual de buena que un 200.
+  // Un 201 es un alta correcta, igual de buena que un 200. Un 204 es un
+  // borrado correcto y viene sin cuerpo, así que no hay nada que leer.
+  if (respuesta.statusCode == 204) return const {};
   if (respuesta.statusCode != 200 && respuesta.statusCode != 201) {
     // Cuando la API rechaza el pedido (credenciales equivocadas, cuenta
     // desactivada) su mensaje explica el motivo y es mejor que uno genérico.
@@ -448,6 +450,52 @@ Future<Objeto> regenerarCodigo(String token, int id) async {
     mensaje404: 'Esa pieza ya no existe.',
   );
   return _objetoDesde(cuerpo);
+}
+
+/// PATCH /objetos/:id/estado — da de baja o reactiva una pieza.
+///
+/// Es una baja lógica: la pieza sigue en la base y los desafíos que la usan
+/// siguen funcionando. Deja de ofrecerse para desafíos nuevos.
+Future<Objeto> cambiarEstadoObjeto(String token, int id, {required bool activo}) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id/estado',
+    token: token,
+    metodo: 'PATCH',
+    cuerpo: {'activo': activo},
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  return _objetoDesde(cuerpo);
+}
+
+/// DELETE /objetos/:id — borra una pieza del museo.
+///
+/// A diferencia de una misión, que se archiva, acá el borrado es real. La API
+/// rechaza con 409 si algún desafío usa la pieza: para esos casos está la baja.
+Future<void> borrarObjeto(String token, int id) async {
+  await _pedirJson(
+    '/objetos/$id',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+}
+
+/// GET /objetos/:id/desafios — en qué desafíos se usa la pieza.
+///
+/// Es lo que explica por qué una pieza en uso no se puede borrar.
+Future<List<UsoDeObjeto>> listarDesafiosDeObjeto(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id/desafios',
+    token: token,
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  try {
+    return (cuerpo['desafios'] as List)
+        .map((json) => UsoDeObjeto.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
 }
 
 Objeto _objetoDesde(Map<String, dynamic> cuerpo) {
