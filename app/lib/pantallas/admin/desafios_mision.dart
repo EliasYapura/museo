@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/desafio.dart';
 import '../../sesion/sesion.dart';
+import '../../widgets/formulario.dart';
 import 'desafio_admin.dart';
 
 /// Los desafíos de una misión, en el orden en que los resuelve el visitante.
@@ -29,6 +30,18 @@ class PantallaDesafiosMision extends StatefulWidget {
 class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
   Future<({String mision, List<Desafio> desafios})>? _datos;
 
+  /// El orden de los desafíos después de arrastrar uno.
+  ///
+  /// Mientras sea null vale el que trajo la carga. Se guarda acá en vez de
+  /// reemplazar el future porque eso mandaría la pantalla a "cargando" y la
+  /// lista desaparecería en medio del arrastre.
+  List<Desafio>? _reordenados;
+
+  /// Mientras se guarda el orden nuevo no se puede arrastrar de nuevo: dos
+  /// cambios a la vez dejarían al servidor y a la pantalla contando distinto.
+  bool _moviendo = false;
+  String _error = '';
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -44,10 +57,14 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
   }
 
   /// Abre el alta o la edición. Si hubo cambios, el listado se vuelve a pedir.
-  Future<void> _abrir({Desafio? desafio}) async {
+  Future<void> _abrir({Desafio? desafio, int? posicion}) async {
     final huboCambios = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PantallaDesafioAdmin(misionId: widget.misionId, desafio: desafio),
+        builder: (_) => PantallaDesafioAdmin(
+          misionId: widget.misionId,
+          desafio: desafio,
+          posicion: posicion,
+        ),
       ),
     );
     if (huboCambios == true) await _recargar();
@@ -59,8 +76,64 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
     // setState lo rechaza, dejando la pantalla sin redibujar.
     setState(() {
       _datos = pedido;
+      // Recargar es pedir el estado de verdad: el orden que quedó de un
+      // arrastre anterior ya no manda.
+      _reordenados = null;
+      _error = '';
     });
     await pedido.then((_) {}, onError: (_, __) {});
+  }
+
+  /// Mueve un desafío de lugar y manda la lista completa en el orden nuevo.
+  ///
+  /// La pantalla muestra el cambio antes de que conteste el servidor, para que
+  /// el arrastre no se sienta trabado. Si la API lo rechaza, vuelve al orden
+  /// anterior y lo avisa.
+  Future<void> _mover(List<Desafio> actuales, int desde, int hasta) async {
+    if (desde == hasta) return;
+
+    final sesion = ProveedorSesion.de(context);
+    final anteriores = List<Desafio>.from(actuales);
+    final nuevos = List<Desafio>.from(actuales);
+    nuevos.insert(hasta, nuevos.removeAt(desde));
+
+    setState(() {
+      _reordenados = nuevos;
+      _moviendo = true;
+      _error = '';
+    });
+
+    try {
+      final guardados = await reordenarDesafios(
+        sesion.token!,
+        widget.misionId,
+        nuevos.map((d) => d.id).toList(),
+      );
+      if (!mounted) return;
+      // Se queda con lo que devolvió la API, que trae los números de orden ya
+      // renumerados de 1 en adelante.
+      setState(() => _reordenados = guardados);
+    } on ErrorApi catch (error) {
+      if (!mounted) return;
+      if (error.sesionVencida) {
+        sesion.cerrarSesion();
+        Navigator.of(context).pop();
+        return;
+      }
+      setState(() {
+        _reordenados = anteriores;
+        _error = error.mensaje;
+      });
+    } catch (error, pila) {
+      debugPrint('Fallo al reordenar: $error\n$pila');
+      if (!mounted) return;
+      setState(() {
+        _reordenados = anteriores;
+        _error = 'No se pudo cambiar el orden.';
+      });
+    } finally {
+      if (mounted) setState(() => _moviendo = false);
+    }
   }
 
   @override
@@ -164,7 +237,7 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
       );
     }
 
-    final desafios = snapshot.data?.desafios ?? const <Desafio>[];
+    final desafios = _reordenados ?? snapshot.data?.desafios ?? const <Desafio>[];
     if (desafios.isEmpty) {
       return _Centrado(
         texto: 'Esta misión todavía no tiene desafíos.\n'
@@ -175,29 +248,88 @@ class _PantallaDesafiosMisionState extends State<PantallaDesafiosMision> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _recargar,
-      color: AppColors.acento,
-      backgroundColor: AppColors.superficie,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        itemCount: desafios.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _Tarjeta(
-          desafio: desafios[i],
-          alTocar: () => _abrir(desafio: desafios[i]),
+    return Column(
+      children: [
+        if (_error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Aviso(_error),
+          ),
+        if (desafios.length > 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.drag_indicator, size: 16, color: AppColors.textoInactivo),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Arrastrá de acá para cambiar el orden del recorrido.',
+                    style: AppText.sans(size: 12.5, color: AppColors.textoInactivo),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _recargar,
+            color: AppColors.acento,
+            backgroundColor: AppColors.superficie,
+            child: ReorderableListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              itemCount: desafios.length,
+              // El arrastre arranca sólo desde el asa, no desde la tarjeta:
+              // si no, mover y abrir para editar se pelearían por el mismo
+              // gesto.
+              buildDefaultDragHandles: false,
+              // onReorderItem y no onReorder: ya entrega el destino contando
+              // la lista sin el elemento que se movió, que es lo que hace
+              // falta para insertarlo.
+              onReorderItem: (desde, hasta) => _mover(desafios, desde, hasta),
+              proxyDecorator: (hijo, _, __) => Material(
+                color: Colors.transparent,
+                child: hijo,
+              ),
+              itemBuilder: (_, i) => Padding(
+                // La key tiene que ser estable y propia de cada desafío: es
+                // con lo que la lista sabe cuál se movió.
+                key: ValueKey(desafios[i].id),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _Tarjeta(
+                  desafio: desafios[i],
+                  indice: i,
+                  sePuedeMover: desafios.length > 1 && !_moviendo,
+                  alTocar: () => _abrir(desafio: desafios[i], posicion: i + 1),
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
 class _Tarjeta extends StatelessWidget {
   final Desafio desafio;
+
+  /// Posición en la lista, que es lo que necesita el asa para saber qué mover.
+  final int indice;
+
+  /// Con un solo desafío no hay nada que ordenar, y mientras se guarda un
+  /// cambio de orden no se deja arrastrar otro.
+  final bool sePuedeMover;
+
   final VoidCallback alTocar;
 
-  const _Tarjeta({required this.desafio, required this.alTocar});
+  const _Tarjeta({
+    required this.desafio,
+    required this.indice,
+    required this.sePuedeMover,
+    required this.alTocar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -214,8 +346,10 @@ class _Tarjeta extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // El número es el orden del recorrido, lo que el visitante ve
-              // como "desafío 1 de 4".
+              // El número es la posición en la lista y no la columna orden de
+              // la base: al borrar uno, la base deja el hueco (el 1, 2, 3 pasa
+              // a ser 2, 3) hasta que se reordene. El visitante los resuelve
+              // en fila, así que lo que ve es la posición.
               Container(
                 width: 30,
                 height: 30,
@@ -226,7 +360,7 @@ class _Tarjeta extends StatelessWidget {
                   border: Border.all(color: AppColors.borde),
                 ),
                 child: Text(
-                  '${desafio.orden}',
+                  '${indice + 1}',
                   style: AppText.sans(
                     size: 13,
                     color: AppColors.acento,
@@ -241,6 +375,22 @@ class _Tarjeta extends StatelessWidget {
                   style: AppText.serif(size: 16),
                 ),
               ),
+              if (sePuedeMover) ...[
+                const SizedBox(width: 8),
+                // El asa es lo único que inicia el arrastre; el resto de la
+                // tarjeta sigue abriendo el desafío para editarlo.
+                ReorderableDragStartListener(
+                  index: indice,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.drag_indicator,
+                      size: 22,
+                      color: AppColors.textoInactivo,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
