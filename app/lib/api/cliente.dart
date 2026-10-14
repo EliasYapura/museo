@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:http/http.dart' as http;
 
+import '../modelos/desafio.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../sesion/sesion.dart';
@@ -277,6 +278,30 @@ Future<MisionAdmin> archivarMision(String token, int id) async {
 MisionAdmin _misionDesde(Map<String, dynamic> cuerpo) {
   try {
     return MisionAdmin.desdeJson(cuerpo['mision'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+// --- Administración de desafíos -------------------------------------------
+
+/// GET /misiones/:id/desafios — los desafíos de una misión, en orden.
+///
+/// La API devuelve también el nombre de la misión, así que la pantalla puede
+/// titularse sola sin pedir la misión por separado.
+Future<({String mision, List<Desafio> desafios})> listarDesafios(String token, int misionId) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$misionId/desafios',
+    token: token,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  try {
+    return (
+      mision: (cuerpo['mision'] as Map<String, dynamic>)['nombre'] as String,
+      desafios: (cuerpo['desafios'] as List)
+          .map((json) => Desafio.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+    );
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }

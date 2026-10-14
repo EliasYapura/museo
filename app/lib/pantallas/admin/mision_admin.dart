@@ -5,6 +5,7 @@ import '../../estilo.dart';
 import '../../modelos/mision_admin.dart';
 import '../../sesion/sesion.dart';
 import '../../widgets/formulario.dart';
+import 'desafios_mision.dart';
 import 'formulario_mision.dart';
 
 /// Crear una misión o editar una existente.
@@ -102,6 +103,39 @@ class _PantallaMisionAdminState extends State<PantallaMisionAdmin> {
       });
     }
     return resultado.modificada ? 'Cambios guardados.' : 'No había cambios para guardar.';
+  }
+
+  /// Abre los desafíos de la misión y, al volver, actualiza la cuenta.
+  ///
+  /// No se vuelve a armar la pantalla entera: se pide la misión y se guarda
+  /// como [_actualizada], que es lo que miran el título y la sección de
+  /// estado. Reemplazar el future destruiría el formulario.
+  Future<void> _abrirDesafios(MisionAdmin mision) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PantallaDesafiosMision(
+          misionId: mision.id,
+          nombreConocido: mision.nombre,
+        ),
+      ),
+    );
+    if (!mounted) return;
+
+    try {
+      final fresca = await obtenerMisionAdmin(
+        ProveedorSesion.de(context).token!,
+        mision.id,
+      );
+      if (!mounted) return;
+      // Si cambió la cantidad, el listado de misiones también la muestra y
+      // tiene que recargarse al salir.
+      if (fresca.desafios != mision.desafios) _huboCambios = true;
+      setState(() => _actualizada = fresca);
+    } catch (error) {
+      // Es sólo refrescar un número: si falla, se queda el que había. Molestar
+      // con un error acá sería peor que mostrar una cuenta vieja.
+      debugPrint('No se pudo actualizar la cuenta de desafíos: $error');
+    }
   }
 
   /// Publica o despublica, según cómo esté ahora.
@@ -303,6 +337,11 @@ class _PantallaMisionAdminState extends State<PantallaMisionAdmin> {
                         // no existe.
                         if (mision != null) ...[
                           const SizedBox(height: 30),
+                          _TarjetaDesafios(
+                            cantidad: mision.desafios,
+                            alTocar: () => _abrirDesafios(mision),
+                          ),
+                          const SizedBox(height: 12),
                           _SeccionEstado(
                             mision: mision,
                             ocupado: _ocupado,
@@ -319,6 +358,58 @@ class _PantallaMisionAdminState extends State<PantallaMisionAdmin> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Acceso a los desafíos de la misión, con cuántos tiene cargados.
+class _TarjetaDesafios extends StatelessWidget {
+  final int cantidad;
+  final Future<void> Function() alTocar;
+
+  const _TarjetaDesafios({required this.cantidad, required this.alTocar});
+
+  @override
+  Widget build(BuildContext context) {
+    final vacia = cantidad == 0;
+
+    return InkWell(
+      onTap: () => alTocar(),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Desafíos',
+                    style: AppText.sans(size: 13.5, peso: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    vacia
+                        ? 'Todavía no tiene ninguno.'
+                        : '$cantidad ${cantidad == 1 ? 'cargado' : 'cargados'}.',
+                    style: AppText.sans(
+                      size: 13,
+                      color: vacia ? AppColors.textoInactivo : AppColors.textoSecundario,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textoSecundario),
+          ],
         ),
       ),
     );
