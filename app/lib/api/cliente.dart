@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 import 'package:http/http.dart' as http;
 
 import '../modelos/mision.dart';
+import '../modelos/mision_admin.dart';
 import '../sesion/sesion.dart';
 
 /// Dirección de la API.
@@ -36,10 +37,15 @@ String get apiUrl {
 /// [sesionVencida] marca el 401: la pantalla que lo reciba tiene que cerrar la
 /// sesión en vez de ofrecer reintentar, porque reintentar con el mismo token
 /// va a fallar siempre igual.
+/// [errores] trae los rechazos por campo que devuelve la API
+/// (`{ "nombre": "El nombre es obligatorio" }`), para mostrarlos en el campo
+/// que corresponde y no todos juntos arriba.
 class ErrorApi implements Exception {
   final String mensaje;
   final bool sesionVencida;
-  const ErrorApi(this.mensaje, {this.sesionVencida = false});
+  final Map<String, String> errores;
+
+  const ErrorApi(this.mensaje, {this.sesionVencida = false, this.errores = const {}});
 
   @override
   String toString() => mensaje;
@@ -69,9 +75,13 @@ Future<Map<String, dynamic>> _pedirJson(
       if (cuerpo != null) 'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
-    final pedido = metodo == 'POST'
-        ? http.post(uri, headers: cabeceras, body: cuerpo == null ? null : jsonEncode(cuerpo))
-        : http.get(uri, headers: cabeceras);
+    final cuerpoCodificado = cuerpo == null ? null : jsonEncode(cuerpo);
+    final pedido = switch (metodo) {
+      'POST' => http.post(uri, headers: cabeceras, body: cuerpoCodificado),
+      'PUT' => http.put(uri, headers: cabeceras, body: cuerpoCodificado),
+      'PATCH' => http.patch(uri, headers: cabeceras, body: cuerpoCodificado),
+      _ => http.get(uri, headers: cabeceras),
+    };
     respuesta = await pedido.timeout(_espera);
   } catch (_) {
     // Servidor apagado, sin red, se agotó la espera o, en el navegador, un
@@ -86,13 +96,17 @@ Future<Map<String, dynamic>> _pedirJson(
     throw const ErrorApi('Tu sesión venció. Ingresá de nuevo.', sesionVencida: true);
   }
   if (respuesta.statusCode == 404 && mensaje404 != null) throw ErrorApi(mensaje404);
-  if (respuesta.statusCode != 200) {
+  // Un 201 es un alta correcta, igual de buena que un 200.
+  if (respuesta.statusCode != 200 && respuesta.statusCode != 201) {
     // Cuando la API rechaza el pedido (credenciales equivocadas, cuenta
     // desactivada) su mensaje explica el motivo y es mejor que uno genérico.
     // Cuando falla ella misma, no: "Error interno del servidor" no le dice
     // nada a quien está en una sala del museo.
     final suyo = respuesta.statusCode < 500 ? _mensajeDeError(respuesta) : null;
-    throw ErrorApi(suyo ?? 'El museo no está respondiendo. Probá de nuevo en un rato.');
+    throw ErrorApi(
+      suyo ?? 'El museo no está respondiendo. Probá de nuevo en un rato.',
+      errores: respuesta.statusCode < 500 ? _erroresPorCampo(respuesta) : const {},
+    );
   }
 
   try {
@@ -113,6 +127,21 @@ String? _mensajeDeError(http.Response respuesta) {
     return mensaje is String && mensaje.isNotEmpty ? mensaje : null;
   } catch (_) {
     return null;
+  }
+}
+
+/// Los rechazos por campo, si la respuesta trae el objeto `errores`.
+Map<String, String> _erroresPorCampo(http.Response respuesta) {
+  try {
+    final cuerpo = jsonDecode(utf8.decode(respuesta.bodyBytes));
+    final errores = cuerpo is Map ? cuerpo['errores'] : null;
+    if (errores is! Map) return const {};
+    return {
+      for (final entrada in errores.entries)
+        if (entrada.value is String) entrada.key.toString(): entrada.value as String,
+    };
+  } catch (_) {
+    return const {};
   }
 }
 
@@ -155,6 +184,65 @@ Future<({int misiones, int publicadas, int objetos})> obtenerResumen(String toke
       publicadas: lista.where((m) => (m as Map)['activa'] == true).length,
       objetos: (objetos['objetos'] as List).length,
     );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+// --- Administración de misiones -------------------------------------------
+// Son las mismas rutas que usa el panel web, así que exigen token de
+// administrador. La API rechaza igual aunque la app se equivoque.
+
+/// GET /misiones — todas las misiones no archivadas, para administrarlas.
+Future<List<MisionAdmin>> listarMisiones(String token) async {
+  final cuerpo = await _pedirJson('/misiones', token: token);
+  try {
+    return (cuerpo['misiones'] as List)
+        .map((json) => MisionAdmin.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /misiones/:id — los datos completos, para editarla.
+Future<MisionAdmin> obtenerMisionAdmin(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id',
+    token: token,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _misionDesde(cuerpo);
+}
+
+/// POST /misiones — crea una misión. Nace siempre en borrador.
+Future<MisionAdmin> crearMision(String token, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson('/misiones', token: token, metodo: 'POST', cuerpo: datos);
+  return _misionDesde(cuerpo);
+}
+
+/// PUT /misiones/:id — guarda los cambios.
+///
+/// Devuelve también si hubo cambios de verdad: la API no toca la fila cuando
+/// se guarda lo mismo, y la pantalla lo avisa en vez de mentir que guardó.
+Future<({MisionAdmin mision, bool modificada})> editarMision(
+  String token,
+  int id,
+  Map<String, dynamic> datos,
+) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return (mision: _misionDesde(cuerpo), modificada: cuerpo['modificada'] == true);
+}
+
+MisionAdmin _misionDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return MisionAdmin.desdeJson(cuerpo['mision'] as Map<String, dynamic>);
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }

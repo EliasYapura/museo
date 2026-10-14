@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
+import 'admin/misiones_admin.dart';
 
 /// Portada de administración: lo primero que ve el equipo del museo al entrar.
 ///
@@ -136,6 +137,14 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
                       numero: '${datos.misiones}',
                       titulo: datos.misiones == 1 ? 'misión cargada' : 'misiones cargadas',
                       detalle: '${datos.publicadas} publicadas',
+                      // Al volver del listado se recarga: pueden haberse
+                      // creado o editado misiones.
+                      alTocar: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PantallaMisionesAdmin()),
+                        );
+                        await _recargar();
+                      },
                     ),
                     const SizedBox(height: 12),
                     _Tarjeta(
@@ -159,27 +168,48 @@ class _Tarjeta extends StatelessWidget {
   final String titulo;
   final String detalle;
 
-  const _Tarjeta({required this.numero, required this.titulo, required this.detalle});
+  /// Sin esto la tarjeta es sólo informativa: las secciones que todavía no se
+  /// trasladaron del panel no llevan a ningún lado.
+  final Future<void> Function()? alTocar;
+
+  const _Tarjeta({
+    required this.numero,
+    required this.titulo,
+    required this.detalle,
+    this.alTocar,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.superficie,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borde),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(numero, style: AppText.serif(size: 32, color: AppColors.acento)),
-          const SizedBox(height: 2),
-          Text(titulo, style: AppText.sans(size: 15, color: AppColors.textoPrimario)),
-          const SizedBox(height: 4),
-          Text(detalle, style: AppText.sans(size: 13)),
-        ],
+    return InkWell(
+      onTap: alTocar == null ? null : () => alTocar!(),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(numero, style: AppText.serif(size: 32, color: AppColors.acento)),
+                  const SizedBox(height: 2),
+                  Text(titulo, style: AppText.sans(size: 15, color: AppColors.textoPrimario)),
+                  const SizedBox(height: 4),
+                  Text(detalle, style: AppText.sans(size: 13)),
+                ],
+              ),
+            ),
+            if (alTocar != null)
+              const Icon(Icons.chevron_right, color: AppColors.textoSecundario),
+          ],
+        ),
       ),
     );
   }
