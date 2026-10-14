@@ -7,6 +7,7 @@ import '../modelos/desafio.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
+import '../modelos/sala.dart';
 import '../sesion/sesion.dart';
 
 /// Dirección de la API.
@@ -386,6 +387,56 @@ Future<List<Objeto>> listarObjetos(String token) async {
     return (cuerpo['objetos'] as List)
         .map((json) => Objeto.desdeJson(json as Map<String, dynamic>))
         .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /salas — las salas del museo, en el orden del recorrido.
+///
+/// Es sólo de lectura: las salas se cargan en la base y nunca se
+/// administraron desde el panel.
+Future<List<Sala>> listarSalas(String token) async {
+  final cuerpo = await _pedirJson('/salas', token: token);
+  try {
+    return (cuerpo['salas'] as List)
+        .map((json) => Sala.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// POST /objetos — carga una pieza. La API le genera el código sola.
+Future<Objeto> crearObjeto(String token, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson('/objetos', token: token, metodo: 'POST', cuerpo: datos);
+  return _objetoDesde(cuerpo);
+}
+
+/// PUT /objetos/:id — guarda los cambios de una pieza.
+///
+/// El código no se toca acá: cambiarlo dejaría inservible la etiqueta que ya
+/// está puesta junto a la pieza. Para eso está su propia ruta.
+///
+/// Devuelve también si hubo cambios de verdad, igual que al editar una misión.
+Future<({Objeto objeto, bool modificado})> editarObjeto(
+  String token,
+  int id,
+  Map<String, dynamic> datos,
+) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  return (objeto: _objetoDesde(cuerpo), modificado: cuerpo['modificado'] == true);
+}
+
+Objeto _objetoDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return Objeto.desdeJson(cuerpo['objeto'] as Map<String, dynamic>);
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
