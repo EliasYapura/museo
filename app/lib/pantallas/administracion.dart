@@ -4,6 +4,7 @@ import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
 import 'admin/misiones_admin.dart';
+import 'admin/objetos_admin.dart';
 
 /// Portada de administración: lo primero que ve el equipo del museo al entrar.
 ///
@@ -151,6 +152,14 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
                       numero: '${datos.objetos}',
                       titulo: datos.objetos == 1 ? 'objeto registrado' : 'objetos registrados',
                       detalle: 'piezas del museo con su código',
+                      // Al volver se recarga: pueden haberse dado de baja o
+                      // cargado piezas nuevas.
+                      alTocar: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PantallaObjetosAdmin()),
+                        );
+                        await _recargar();
+                      },
                     ),
                   ],
                 );
