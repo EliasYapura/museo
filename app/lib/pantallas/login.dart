@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
+import '../widgets/formulario.dart';
 
 /// Inicio de sesión del administrador.
 ///
@@ -17,11 +18,10 @@ class PantallaLogin extends StatefulWidget {
 
 class _PantallaLoginState extends State<PantallaLogin> {
   final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _password = ControladorContrasena();
   final _formulario = GlobalKey<FormState>();
 
   bool _enviando = false;
-  bool _verPassword = false;
   String _error = '';
 
   @override
@@ -116,14 +116,27 @@ class _PantallaLoginState extends State<PantallaLogin> {
                   const _Etiqueta('Contraseña'),
                   TextFormField(
                     controller: _password,
-                    obscureText: !_verPassword,
+                    // Sin obscureText a propósito: el enmascarado lo hace el
+                    // controlador, que no deja ver ni el último carácter.
+                    // El resto apaga lo que el teclado hace con un campo
+                    // común: sugerencias, corrección y aprender lo tipeado.
+                    keyboardType: TextInputType.visiblePassword,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    // Mientras está oculta no se puede seleccionar ni copiar,
+                    // igual que en un campo con obscureText.
+                    enableInteractiveSelection: !_password.oculto,
                     style: AppText.sans(size: 15, color: AppColors.textoPrimario),
                     decoration: _decoracion().copyWith(
                       suffixIcon: IconButton(
-                        onPressed: () => setState(() => _verPassword = !_verPassword),
-                        icon: Icon(_verPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () =>
+                            setState(() => _password.oculto = !_password.oculto),
+                        icon: Icon(
+                          _password.oculto ? Icons.visibility : Icons.visibility_off,
+                        ),
                         color: AppColors.textoSecundario,
-                        tooltip: _verPassword ? 'Ocultar' : 'Mostrar',
+                        tooltip: _password.oculto ? 'Mostrar' : 'Ocultar',
                       ),
                     ),
                     validator: (valor) =>

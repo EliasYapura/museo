@@ -55,6 +55,51 @@ InputDecoration decoracionCampo({Widget? suffixIcon, String? pista}) {
 /// Estilo de los campos de texto.
 TextStyle get estiloCampo => AppText.sans(size: 15, color: AppColors.textoPrimario);
 
+/// Controlador de un campo de contraseña que no deja ver lo que se escribe en
+/// ningún momento.
+///
+/// No alcanza con `obscureText: true`. Android muestra por un instante el
+/// último carácter tipeado, y eso no lo decide la app: Flutter lo lee de
+/// `platformDispatcher.brieflyShowPassword`, que viene del ajuste "Mostrar
+/// contraseñas" del sistema, y no expone ninguna forma de apagarlo desde el
+/// TextField.
+///
+/// Por eso el campo va sin `obscureText` y el enmascarado lo hace este
+/// controlador: adentro guarda la contraseña de verdad, así que validar y
+/// enviar siguen funcionando igual, pero lo que dibuja en pantalla son puntos.
+/// Al tocar el ojo, [oculto] pasa a false y recién ahí se ve el texto.
+class ControladorContrasena extends TextEditingController {
+  ControladorContrasena({this.caracter = '•'});
+
+  /// Lo que se dibuja en lugar de cada letra.
+  final String caracter;
+
+  bool _oculto = true;
+  bool get oculto => _oculto;
+
+  set oculto(bool valor) {
+    if (_oculto == valor) return;
+    _oculto = valor;
+    notifyListeners();
+  }
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    if (!_oculto) {
+      return super.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: withComposing,
+      );
+    }
+    return TextSpan(style: style, text: caracter * text.length);
+  }
+}
+
 /// Aviso en bloque: el error general de una pantalla o la confirmación de que
 /// algo se guardó.
 class Aviso extends StatelessWidget {
