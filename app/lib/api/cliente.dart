@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 import 'package:http/http.dart' as http;
 
 import '../modelos/desafio.dart';
+import '../modelos/desafio_jugable.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
@@ -528,6 +529,25 @@ Future<Mision> obtenerMision(int id) async {
   );
   try {
     return Mision.desdeJson(cuerpo['mision'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /publico/misiones/:id/desafios — los desafíos a jugar, en orden (VIS04).
+///
+/// No trae las respuestas correctas ni cómo se comparan: eso se queda en el
+/// servidor. Un 404 acá significa que el museo bajó la misión entre que se
+/// abrió el detalle y se apretó "Comenzar recorrido".
+Future<List<DesafioJugable>> obtenerDesafiosJugables(int misionId) async {
+  final cuerpo = await _pedirJson(
+    '/publico/misiones/$misionId/desafios',
+    mensaje404: 'Esta misión ya no está disponible.',
+  );
+  try {
+    return (cuerpo['desafios'] as List)
+        .map((json) => DesafioJugable.desdeJson(json as Map<String, dynamic>))
+        .toList();
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
