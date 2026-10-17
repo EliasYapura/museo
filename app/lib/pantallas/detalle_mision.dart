@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/mision.dart';
+import 'recorrido.dart';
 
 /// Cómo se juega una misión. Está escrito acá y no en la base porque es igual
 /// para todas: la descripción que carga el administrador cuenta de qué se
@@ -238,18 +239,19 @@ class _Detalle extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            // El recorrido en sí es VIS04.
-            onPressed: null,
+            // La misión viaja entera al recorrido: ahí se vuelven a mostrar el
+            // nombre y los puntos totales, y así no hay que pedirla de nuevo.
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => PantallaRecorrido(mision: mision)),
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.acento,
-              disabledBackgroundColor: AppColors.superficie,
-              disabledForegroundColor: AppColors.textoInactivo,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Text(
               'Comenzar recorrido',
-              style: AppText.sans(size: 15, color: AppColors.textoInactivo, peso: FontWeight.w700),
+              style: AppText.sans(size: 15, color: AppColors.fondo, peso: FontWeight.w700),
             ),
           ),
         ),

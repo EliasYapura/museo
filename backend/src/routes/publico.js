@@ -74,3 +74,53 @@ publicoRouter.get('/misiones/:id', async (req, res) => {
   if (!rows[0]) return res.status(404).json(NO_DISPONIBLE);
   return res.json({ mision: rows[0] });
 });
+
+// Lo que la app necesita de cada desafio para jugarlo (VIS04).
+//
+// Lo que NO esta aca es la parte importante: ni respuesta_correcta ni la
+// tolerancia con la que se compara. Comprobar una respuesta es trabajo del
+// servidor; si esos datos viajaran al telefono, cualquiera podria abrir el
+// APK y leer todas las respuestas de todas las misiones.
+const COLUMNAS_DESAFIO = `d.id, d.orden, d.tipo, d.enunciado, d.puntos,
+                  -- De la configuracion sale solo esto: las opciones se le
+                  -- muestran al visitante igual, asi que no son un secreto.
+                  COALESCE(d.configuracion -> 'opciones', '[]'::jsonb) AS opciones,
+                  -- Hay pieza que buscar y escanear, sin decir cual es.
+                  (d.objeto_id IS NOT NULL) AS requiere_escaneo,
+                  -- En la busqueda guiada el nombre de la pieza no se manda:
+                  -- el desafio consiste justamente en deducir cual es a partir
+                  -- del enunciado, y nombrarla lo resolveria solo.
+                  CASE WHEN d.tipo = 'busqueda_guiada' THEN NULL ELSE o.nombre END AS pieza,
+                  -- La sala si, en todos los casos: es a donde hay que ir.
+                  s.nombre AS sala`;
+
+// GET /publico/misiones/:id/desafios — los desafios a jugar, en orden (VIS04).
+//
+// Mismo filtro que el detalle: una mision despublicada o archivada no se
+// empieza ni con el enlace directo.
+publicoRouter.get('/misiones/:id/desafios', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_DISPONIBLE);
+
+  const mision = await pool.query(
+    'SELECT 1 FROM misiones WHERE id = $1 AND activa = TRUE AND archivada = FALSE',
+    [req.params.id]
+  );
+  if (!mision.rows[0]) return res.status(404).json(NO_DISPONIBLE);
+
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNAS_DESAFIO}
+     FROM desafios d
+     LEFT JOIN objetos o ON o.id = d.objeto_id
+     LEFT JOIN salas s ON s.id = o.sala_id
+     WHERE d.mision_id = $1
+     ORDER BY d.orden, d.id`,
+    [req.params.id]
+  );
+  // Una mision publicada no puede estar vacia: la API no deja publicarla sin
+  // desafios y la despublica sola si se borra el ultimo (ADM04). Si igual
+  // llega vacia es que quedo asi entre dos pedidos, y abrir un recorrido sin
+  // nada que resolver es peor que decir que no esta disponible.
+  if (rows.length === 0) return res.status(404).json(NO_DISPONIBLE);
+
+  return res.json({ desafios: rows });
+});
