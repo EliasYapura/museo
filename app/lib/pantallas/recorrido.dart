@@ -7,6 +7,7 @@ import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
 import 'escaneo.dart';
+import 'resultado.dart';
 
 /// El recorrido de una misión: muestra el desafío que toca resolver (VIS04).
 ///
@@ -95,6 +96,23 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     }
   }
 
+  /// Cierra el recorrido y muestra cómo le fue (VIS11).
+  void _terminar(List<DesafioJugable> desafios) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PantallaResultado(
+          mision: widget.mision,
+          puntos: _puntos,
+          // El total sale de los desafíos que se jugaron y no del `puntos`
+          // que trajo el listado de misiones: aquel se cargó al abrir la app
+          // y pudo quedar viejo si el administrador editó algo mientras tanto.
+          puntosPosibles: desafios.fold(0, (suma, desafio) => suma + desafio.puntos),
+          desafios: desafios.length,
+        ),
+      ),
+    );
+  }
+
   /// Abre la cámara y, si el código era el de la pieza, guarda lo que contó el
   /// museo sobre ella (VIS05).
   Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
@@ -169,6 +187,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                     total: desafios.length,
                     alEscanear: () => _escanear(desafio, desafios.length),
                     alAcertar: (puntos) => _sumar(puntos, desafios.length),
+                    alTerminar: () => _terminar(desafios),
                   );
                 },
               ),
@@ -201,6 +220,8 @@ class _Desafio extends StatelessWidget {
   /// Avisa que el desafío quedó resuelto, con los puntos que sumó.
   final void Function(int puntos) alAcertar;
 
+  final VoidCallback alTerminar;
+
   const _Desafio({
     required this.desafio,
     required this.escaneo,
@@ -209,6 +230,7 @@ class _Desafio extends StatelessWidget {
     required this.total,
     required this.alEscanear,
     required this.alAcertar,
+    required this.alTerminar,
   });
 
   /// Falta encontrar la pieza antes de poder resolver nada.
@@ -290,8 +312,11 @@ class _Desafio extends StatelessWidget {
         else
           _Accion(
             texto: _faltaEscanear ? 'Escanear el código' : 'Terminar la misión',
-            // Escanear se puede; terminar la misión es VIS11.
-            alTocar: _faltaEscanear ? alEscanear : null,
+            // Terminar sólo cuando la misión está terminada de verdad. Si se
+            // encendiera con sólo no tener nada que hacer, un desafío de un
+            // tipo que esta versión de la app no conoce dejaría cerrar la
+            // misión por la mitad, con un resultado que no es el real.
+            alTocar: _faltaEscanear ? alEscanear : (resuelto ? alTerminar : null),
           ),
       ],
     );
