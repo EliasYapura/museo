@@ -36,6 +36,16 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   /// último de la misión.
   bool _resuelto = false;
 
+  /// Lo que lleva ganado en este recorrido (VIS08).
+  ///
+  /// Suma lo que devuelve el servidor en cada acierto y no los puntos que
+  /// vale el desafío. Hoy son el mismo número, pero cuando las pistas
+  /// descuenten (VIS07, Sprint 4) el servidor va a devolver menos, y acá hay
+  /// que mostrar lo que de verdad se ganó.
+  ///
+  /// Vive en memoria, como el resto del recorrido: guardarlo es SIS03.
+  int _puntos = 0;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +80,21 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     }
   }
 
+  /// Suma lo ganado y pasa al desafío siguiente (VIS08).
+  void _sumar(int puntos, int cuantos) {
+    setState(() {
+      _puntos += puntos;
+      _avanzar(cuantos);
+    });
+    // El total de arriba cambia solo, sin decir de dónde salió. Este aviso es
+    // el que conecta "resolví esto" con "gané tanto".
+    if (puntos > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('+$puntos pts'), duration: const Duration(seconds: 2)),
+      );
+    }
+  }
+
   /// Abre la cámara y, si el código era el de la pieza, guarda lo que contó el
   /// museo sobre ella (VIS05).
   Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
@@ -79,12 +104,11 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     // Null es haber salido de la cámara sin acertar: el desafío sigue igual.
     if (resultado == null || !mounted) return;
 
-    setState(() {
-      _escaneo = resultado;
-      // Los desafíos de escaneo y búsqueda se terminan al encontrar la pieza.
-      // Los que además preguntan algo siguen con la pregunta (VIS06).
-      if (resultado.resuelto) _avanzar(cuantos);
-    });
+    setState(() => _escaneo = resultado);
+    // Los desafíos de escaneo y búsqueda se terminan al encontrar la pieza y
+    // suman ahí. Los que además preguntan algo siguen con la pregunta (VIS06)
+    // y suman recién al contestarla.
+    if (resultado.resuelto) _sumar(resultado.puntos, cuantos);
   }
 
   @override
@@ -112,6 +136,8 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                       style: AppText.sans(size: 13).copyWith(letterSpacing: 0.6),
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  _Puntaje(puntos: _puntos),
                 ],
               ),
             ),
@@ -142,7 +168,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                     posicion: _indice + 1,
                     total: desafios.length,
                     alEscanear: () => _escanear(desafio, desafios.length),
-                    alAcertar: () => setState(() => _avanzar(desafios.length)),
+                    alAcertar: (puntos) => _sumar(puntos, desafios.length),
                   );
                 },
               ),
@@ -171,7 +197,9 @@ class _Desafio extends StatelessWidget {
   final int total;
 
   final VoidCallback alEscanear;
-  final VoidCallback alAcertar;
+
+  /// Avisa que el desafío quedó resuelto, con los puntos que sumó.
+  final void Function(int puntos) alAcertar;
 
   const _Desafio({
     required this.desafio,
@@ -205,9 +233,11 @@ class _Desafio extends StatelessWidget {
                 style: AppText.sans(size: 13, color: AppColors.textoSecundario),
               ),
             ),
+            // "Vale" y no sólo el número: arriba está el total ganado, y dos
+            // cifras en pts sin aclarar cuál es cuál se confunden solas.
             Text(
-              '${desafio.puntos} pts',
-              style: AppText.sans(size: 13, color: AppColors.acento, peso: FontWeight.w700),
+              'Vale ${desafio.puntos} pts',
+              style: AppText.sans(size: 13, color: AppColors.textoSecundario),
             ),
           ],
         ),
@@ -276,9 +306,9 @@ class _Desafio extends StatelessWidget {
 class _Pregunta extends StatefulWidget {
   final DesafioJugable desafio;
 
-  /// Se llama cuando la respuesta estuvo bien. El recorrido avanza y este
-  /// widget se va junto con el desafío.
-  final VoidCallback alAcertar;
+  /// Se llama cuando la respuesta estuvo bien, con los puntos que sumó. El
+  /// recorrido avanza y este widget se va junto con el desafío.
+  final void Function(int puntos) alAcertar;
 
   const _Pregunta({super.key, required this.desafio, required this.alAcertar});
 
@@ -311,7 +341,7 @@ class _PreguntaState extends State<_Pregunta> {
       final resultado = await responderDesafio(widget.desafio.id, _respuesta);
       if (!mounted) return;
       if (resultado.correcto) {
-        widget.alAcertar();
+        widget.alAcertar(resultado.puntos);
         return;
       }
       setState(() => _aviso = _esOpcionMultiple
@@ -468,6 +498,40 @@ class _Accion extends StatelessWidget {
             peso: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Lo que el visitante lleva ganado en el recorrido (VIS08).
+///
+/// Va arriba y siempre a la vista, al lado del nombre de la misión. Se muestra
+/// desde el principio, aunque esté en cero: así se entiende qué es cuando
+/// empieza a cambiar.
+class _Puntaje extends StatelessWidget {
+  final int puntos;
+
+  const _Puntaje({required this.puntos});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.superficie,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borde),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_outline, size: 15, color: AppColors.acento),
+          const SizedBox(width: 6),
+          Text(
+            '$puntos pts',
+            style: AppText.sans(size: 13, color: AppColors.acento, peso: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }
