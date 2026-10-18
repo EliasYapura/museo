@@ -124,3 +124,64 @@ publicoRouter.get('/misiones/:id/desafios', async (req, res) => {
 
   return res.json({ desafios: rows });
 });
+
+// Tipos que se resuelven llegando a la pieza: no tienen nada que contestar,
+// asi que un escaneo correcto los da por terminados. Los otros dos siguen con
+// la pregunta (VIS06).
+const TIPOS_SIN_PREGUNTA = ['escaneo_objeto', 'busqueda_guiada'];
+
+const DESAFIO_NO_DISPONIBLE = { error: 'Este desafío ya no está disponible' };
+
+// POST /publico/desafios/:id/escaneo — valida el codigo escaneado contra la
+// pieza que el desafio espera (VIS05, SIS01).
+//
+// La comparacion se hace aca y no en la app por la misma razon que las
+// respuestas: el codigo correcto no puede viajar al telefono, o alcanzaria
+// con leerlo del APK para resolver la mision sin moverse del lugar.
+publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(DESAFIO_NO_DISPONIBLE);
+
+  const { codigo } = req.body ?? {};
+  if (typeof codigo !== 'string' || codigo.trim() === '') {
+    return res.status(400).json({ error: 'El código escaneado no se entendió' });
+  }
+
+  // El JOIN con misiones no es decorativo: sin el, el id de un desafio suelto
+  // dejaria jugar una mision que el museo despublico o archivo.
+  const { rows } = await pool.query(
+    `SELECT d.tipo, d.puntos, d.objeto_id, o.codigo, o.nombre AS pieza, o.dato_clave
+       FROM desafios d
+       JOIN misiones m ON m.id = d.mision_id
+       LEFT JOIN objetos o ON o.id = d.objeto_id
+      WHERE d.id = $1 AND m.activa = TRUE AND m.archivada = FALSE`,
+    [req.params.id]
+  );
+  const desafio = rows[0];
+  if (!desafio) return res.status(404).json(DESAFIO_NO_DISPONIBLE);
+  if (desafio.objeto_id === null) {
+    return res.status(409).json({ error: 'Este desafío no se resuelve escaneando' });
+  }
+
+  // Los codigos estan enteramente en mayusculas, tanto los que genera la API
+  // (OBJ- mas ocho simbolos de un alfabeto en mayusculas) como los cargados a
+  // mano en la base (MLP-OBJ-005). Por eso subir a mayusculas no puede hacer
+  // que dos codigos distintos se confundan: no hay dos que difieran solo en
+  // eso. Lo que si arregla es un lector que devuelva el texto en minusculas.
+  const escaneado = codigo.trim().toUpperCase();
+  if (escaneado !== desafio.codigo.toUpperCase()) {
+    // No se dice que pieza escaneo. En la busqueda guiada, nombrarla seria
+    // darle la respuesta que justamente tenia que deducir.
+    return res.json({ correcto: false });
+  }
+
+  const sinPregunta = TIPOS_SIN_PREGUNTA.includes(desafio.tipo);
+  return res.json({
+    correcto: true,
+    pieza: desafio.pieza,
+    // Lo que el visitante se gana por llegar hasta la vitrina, y con lo que
+    // despues responde la pregunta si el desafio tiene una.
+    dato_clave: desafio.dato_clave,
+    resuelto: sinPregunta,
+    puntos: sinPregunta ? desafio.puntos : 0,
+  });
+});
