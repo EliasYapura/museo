@@ -573,3 +573,25 @@ Future<ResultadoEscaneo> escanearCodigo(int desafioId, String codigo) async {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
 }
+
+/// POST /publico/desafios/:id/respuesta — comprueba la respuesta (VIS06).
+///
+/// Quién decide si está bien es el servidor, que además aplica la tolerancia
+/// con la que el administrador cargó la respuesta. Acá no se sabe cuál era la
+/// correcta ni cuando se falla.
+Future<({bool correcto, int puntos})> responderDesafio(int desafioId, String respuesta) async {
+  final cuerpo = await _pedirJson(
+    '/publico/desafios/$desafioId/respuesta',
+    metodo: 'POST',
+    cuerpo: {'respuesta': respuesta},
+    mensaje404: 'Este desafío ya no está disponible.',
+  );
+  try {
+    return (
+      correcto: cuerpo['correcto'] as bool? ?? false,
+      puntos: cuerpo['puntos'] as int? ?? 0,
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}

@@ -185,3 +185,68 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
     puntos: sinPregunta ? desafio.puntos : 0,
   });
 });
+
+// Tipos que ademas de la pieza tienen algo que contestar (VIS06).
+const TIPOS_CON_PREGUNTA = ['pregunta_opcion_multiple', 'respuesta_corta'];
+
+// Deja un texto listo para compararlo: sin espacios al principio ni al final,
+// y sin espacios repetidos en el medio. Esto vale para las dos tolerancias:
+// que alguien haya tecleado dos espacios seguidos no es un error de contenido,
+// y la promesa de la comparacion exacta es sobre tildes y mayusculas.
+const limpiar = (texto) => texto.trim().replace(/\s+/g, ' ');
+
+// Saca las tildes. normalize('NFD') separa cada letra acentuada en la letra
+// base mas la tilde como caracter aparte, y el reemplazo descarta esas tildes.
+// Se hace aca y no en la base para no obligar al museo a instalar la extension
+// unaccent de PostgreSQL solo por esto.
+const sinTildes = (texto) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// Como se compara lo que escribio el visitante. Las dos tolerancias hacen
+// exactamente lo que el formulario del administrador promete:
+//   exacta   -> "Tiene que escribirse igual, con tildes y mayusculas."
+//   flexible -> "No distingue tildes ni mayusculas."
+function coincide(escrita, correcta, tolerancia) {
+  if (tolerancia === 'exacta') return limpiar(escrita) === limpiar(correcta);
+  return sinTildes(limpiar(escrita).toLowerCase()) === sinTildes(limpiar(correcta).toLowerCase());
+}
+
+// POST /publico/desafios/:id/respuesta — comprueba la respuesta (VIS06).
+//
+// La respuesta correcta no sale de aca ni cuando el visitante se equivoca:
+// solo se le dice si estuvo bien o mal.
+publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(DESAFIO_NO_DISPONIBLE);
+
+  const { respuesta } = req.body ?? {};
+  if (typeof respuesta !== 'string' || respuesta.trim() === '') {
+    return res.status(400).json({ error: 'Escribí una respuesta' });
+  }
+
+  const { rows } = await pool.query(
+    `SELECT d.tipo, d.puntos, d.respuesta_correcta, d.configuracion
+       FROM desafios d
+       JOIN misiones m ON m.id = d.mision_id
+      WHERE d.id = $1 AND m.activa = TRUE AND m.archivada = FALSE`,
+    [req.params.id]
+  );
+  const desafio = rows[0];
+  if (!desafio) return res.status(404).json(DESAFIO_NO_DISPONIBLE);
+  if (!TIPOS_CON_PREGUNTA.includes(desafio.tipo)) {
+    return res.status(409).json({ error: 'Este desafío no se resuelve respondiendo' });
+  }
+  // Un desafio con pregunta siempre deberia tener respuesta cargada, pero si
+  // alguna fila vieja no la tiene, es mejor decirlo que reprobar al visitante
+  // por algo que no es culpa suya.
+  if (desafio.respuesta_correcta === null) {
+    return res.status(409).json({ error: 'Este desafío todavía no se puede responder' });
+  }
+
+  // En la opcion multiple la app devuelve el texto exacto de la opcion que
+  // eligio, asi que no hay tolerancia que aplicar.
+  const acerto =
+    desafio.tipo === 'pregunta_opcion_multiple'
+      ? limpiar(respuesta) === limpiar(desafio.respuesta_correcta)
+      : coincide(respuesta, desafio.respuesta_correcta, desafio.configuracion?.tolerancia);
+
+  return res.json({ correcto: acerto, puntos: acerto ? desafio.puntos : 0 });
+});

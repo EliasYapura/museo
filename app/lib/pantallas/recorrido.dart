@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/cliente.dart';
 import '../estilo.dart';
+import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
@@ -31,6 +32,10 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   /// null al pasar al siguiente, porque cada desafío tiene la suya.
   ResultadoEscaneo? _escaneo;
 
+  /// El desafío actual ya está resuelto y no hay otro al que pasar: era el
+  /// último de la misión.
+  bool _resuelto = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +59,17 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     await pedido.then((_) {}, onError: (_, __) {});
   }
 
+  /// Pasa al desafío siguiente, o marca el recorrido como terminado si éste
+  /// era el último. Se llama siempre dentro de un setState.
+  void _avanzar(int cuantos) {
+    if (_indice + 1 < cuantos) {
+      _indice++;
+      _escaneo = null;
+    } else {
+      _resuelto = true;
+    }
+  }
+
   /// Abre la cámara y, si el código era el de la pieza, guarda lo que contó el
   /// museo sobre ella (VIS05).
   Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
@@ -66,11 +82,8 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     setState(() {
       _escaneo = resultado;
       // Los desafíos de escaneo y búsqueda se terminan al encontrar la pieza.
-      // Los que además preguntan algo se quedan acá hasta VIS06.
-      if (resultado.resuelto && _indice + 1 < cuantos) {
-        _indice++;
-        _escaneo = null;
-      }
+      // Los que además preguntan algo siguen con la pregunta (VIS06).
+      if (resultado.resuelto) _avanzar(cuantos);
     });
   }
 
@@ -125,9 +138,11 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                   return _Desafio(
                     desafio: desafio,
                     escaneo: _escaneo,
+                    resuelto: _resuelto,
                     posicion: _indice + 1,
                     total: desafios.length,
                     alEscanear: () => _escanear(desafio, desafios.length),
+                    alAcertar: () => setState(() => _avanzar(desafios.length)),
                   );
                 },
               ),
@@ -146,6 +161,9 @@ class _Desafio extends StatelessWidget {
   /// El escaneo acertado, si ya encontró la pieza.
   final ResultadoEscaneo? escaneo;
 
+  /// Si el desafío ya está resuelto y era el último de la misión.
+  final bool resuelto;
+
   /// Qué número de desafío es, contando desde 1. Es la posición en el
   /// recorrido y no el `orden` que guarda la base: así, si el administrador
   /// borró uno y quedó un hueco en la numeración, el visitante no lo ve.
@@ -153,17 +171,23 @@ class _Desafio extends StatelessWidget {
   final int total;
 
   final VoidCallback alEscanear;
+  final VoidCallback alAcertar;
 
   const _Desafio({
     required this.desafio,
     required this.escaneo,
+    required this.resuelto,
     required this.posicion,
     required this.total,
     required this.alEscanear,
+    required this.alAcertar,
   });
 
   /// Falta encontrar la pieza antes de poder resolver nada.
   bool get _faltaEscanear => desafio.requiereEscaneo && escaneo == null;
+
+  /// Queda la pregunta por contestar.
+  bool get _faltaResponder => !_faltaEscanear && desafio.tienePregunta && !resuelto;
 
   @override
   Widget build(BuildContext context) {
@@ -199,47 +223,236 @@ class _Desafio extends StatelessWidget {
         const SizedBox(height: 24),
 
         // Antes de escanear se dice qué buscar; después, lo que el museo
-        // cuenta de la pieza encontrada.
+        // cuenta de la pieza encontrada, que es con lo que se responde.
         if (_faltaEscanear)
           _Pieza(desafio: desafio)
         else if (escaneo != null)
           _Encontrada(escaneo: escaneo!),
 
+        // Al resolver un desafío del medio, la prueba de que estuvo bien es
+        // que aparece el siguiente. En el último no aparece nada, así que si
+        // no se dice acá el visitante se queda sin saber si acertó.
+        if (resuelto) ...[
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              const Icon(Icons.check_circle_outline, size: 18, color: AppColors.facil),
+              const SizedBox(width: 8),
+              Text(
+                'Desafío resuelto.',
+                style: AppText.sans(size: 14, color: AppColors.facil, peso: FontWeight.w700),
+              ),
+            ],
+          ),
+        ],
+
         const SizedBox(height: 26),
-        _Accion(desafio: desafio, escaneo: escaneo, alEscanear: alEscanear),
+
+        if (_faltaResponder)
+          // La clave hace que al cambiar de desafío el widget se rearme de
+          // cero: sin ella, la opción marcada y lo escrito pasarían al
+          // siguiente, que es otra pregunta.
+          _Pregunta(
+            key: ValueKey(desafio.id),
+            desafio: desafio,
+            alAcertar: alAcertar,
+          )
+        else
+          _Accion(
+            texto: _faltaEscanear ? 'Escanear el código' : 'Terminar la misión',
+            // Escanear se puede; terminar la misión es VIS11.
+            alTocar: _faltaEscanear ? alEscanear : null,
+          ),
       ],
     );
   }
 }
 
-/// El botón de abajo, que cambia según lo que falte hacer.
-class _Accion extends StatelessWidget {
+/// La pregunta del desafío y el botón para contestarla (VIS06).
+///
+/// Manda la respuesta al servidor, que es quien sabe cuál era la correcta.
+/// Fallar no cuesta nada: se puede volver a intentar. Contar los intentos es
+/// SIS02, del Sprint 4.
+class _Pregunta extends StatefulWidget {
   final DesafioJugable desafio;
-  final ResultadoEscaneo? escaneo;
-  final VoidCallback alEscanear;
 
-  const _Accion({required this.desafio, required this.escaneo, required this.alEscanear});
+  /// Se llama cuando la respuesta estuvo bien. El recorrido avanza y este
+  /// widget se va junto con el desafío.
+  final VoidCallback alAcertar;
+
+  const _Pregunta({super.key, required this.desafio, required this.alAcertar});
+
+  @override
+  State<_Pregunta> createState() => _PreguntaState();
+}
+
+class _PreguntaState extends State<_Pregunta> {
+  final _escrita = TextEditingController();
+  String? _elegida;
+  bool _enviando = false;
+  String _aviso = '';
+
+  bool get _esOpcionMultiple => widget.desafio.tipo == TipoDesafio.preguntaOpcionMultiple;
+
+  String get _respuesta => _esOpcionMultiple ? (_elegida ?? '') : _escrita.text.trim();
+
+  @override
+  void dispose() {
+    _escrita.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enviar() async {
+    setState(() {
+      _enviando = true;
+      _aviso = '';
+    });
+    try {
+      final resultado = await responderDesafio(widget.desafio.id, _respuesta);
+      if (!mounted) return;
+      if (resultado.correcto) {
+        widget.alAcertar();
+        return;
+      }
+      setState(() => _aviso = _esOpcionMultiple
+          ? 'Esa no es. Probá con otra.'
+          : 'Esa no es. Fijate otra vez en lo que cuenta la pieza y probá de nuevo.');
+    } on ErrorApi catch (error) {
+      if (mounted) setState(() => _aviso = error.mensaje);
+    } catch (error, pila) {
+      debugPrint('Fallo al comprobar la respuesta: $error\n$pila');
+      if (mounted) setState(() => _aviso = 'No se pudo comprobar la respuesta.');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Encontrar la pieza va primero: no tiene sentido preguntar algo sobre
-    // ella antes de llegar hasta la vitrina.
-    final escanear = desafio.requiereEscaneo && escaneo == null;
-    // Un escaneo que ya resolvió el desafío y no avanzó es porque era el
-    // último de la misión. La pantalla de cierre es VIS11.
-    final termino = escaneo?.resuelto ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_esOpcionMultiple)
+          for (final opcion in widget.desafio.opciones)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _Opcion(
+                texto: opcion,
+                elegida: _elegida == opcion,
+                alTocar: _enviando ? null : () => setState(() => _elegida = opcion),
+              ),
+            )
+        else
+          TextField(
+            controller: _escrita,
+            enabled: !_enviando,
+            style: AppText.sans(size: 15),
+            // Sin estas dos, el teclado de Android "corrige" solo: pone la
+            // mayúscula inicial y cambia palabras que no conoce. En un
+            // desafío de comparación exacta eso haría fallar al visitante por
+            // algo que no escribió él.
+            textCapitalization: TextCapitalization.none,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (_respuesta.isNotEmpty && !_enviando) _enviar();
+            },
+            decoration: InputDecoration(
+              hintText: 'Escribí tu respuesta',
+              hintStyle: AppText.sans(size: 15, color: AppColors.textoInactivo),
+              filled: true,
+              fillColor: AppColors.superficie,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borde),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.acento),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borde),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
 
-    final texto = escanear
-        ? 'Escanear el código'
-        : termino
-            ? 'Terminar la misión'
-            : 'Responder';
+        if (_aviso.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(_aviso, style: AppText.sans(size: 13.5, color: AppColors.dificil)),
+        ],
+
+        const SizedBox(height: 18),
+        _Accion(
+          texto: _enviando ? 'Comprobando…' : 'Responder',
+          alTocar: _respuesta.isEmpty || _enviando ? null : _enviar,
+        ),
+      ],
+    );
+  }
+}
+
+/// Una de las opciones de una pregunta de opción múltiple.
+class _Opcion extends StatelessWidget {
+  final String texto;
+  final bool elegida;
+  final VoidCallback? alTocar;
+
+  const _Opcion({required this.texto, required this.elegida, required this.alTocar});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: alTocar,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: elegida ? AppColors.acento : AppColors.borde,
+            width: elegida ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // El círculo marca cuál está elegida sin depender sólo del color
+            // del borde, que en una pantalla al sol casi no se distingue.
+            Icon(
+              elegida ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 20,
+              color: elegida ? AppColors.acento : AppColors.textoInactivo,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(texto, style: AppText.sans(size: 15))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// El botón grande del final de la pantalla.
+class _Accion extends StatelessWidget {
+  final String texto;
+
+  /// Null lo deja apagado.
+  final VoidCallback? alTocar;
+
+  const _Accion({required this.texto, required this.alTocar});
+
+  @override
+  Widget build(BuildContext context) {
+    final activo = alTocar != null;
 
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        // Responder es VIS06 y la pantalla final es VIS11.
-        onPressed: escanear ? alEscanear : null,
+        onPressed: alTocar,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.acento,
           disabledBackgroundColor: AppColors.superficie,
@@ -251,7 +464,7 @@ class _Accion extends StatelessWidget {
           texto,
           style: AppText.sans(
             size: 15,
-            color: escanear ? AppColors.fondo : AppColors.textoInactivo,
+            color: activo ? AppColors.fondo : AppColors.textoInactivo,
             peso: FontWeight.w700,
           ),
         ),
