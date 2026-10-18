@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
+import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
@@ -548,6 +549,26 @@ Future<List<DesafioJugable>> obtenerDesafiosJugables(int misionId) async {
     return (cuerpo['desafios'] as List)
         .map((json) => DesafioJugable.desdeJson(json as Map<String, dynamic>))
         .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// POST /publico/desafios/:id/escaneo — valida el código leído del QR contra
+/// la pieza que el desafío espera (VIS05, SIS01).
+///
+/// Un código equivocado no es un error: la API contesta 200 con
+/// `correcto: false` y la pantalla lo cuenta como un intento fallido. Lo que
+/// sí es error es un 409, que significa que este desafío no se escanea.
+Future<ResultadoEscaneo> escanearCodigo(int desafioId, String codigo) async {
+  final cuerpo = await _pedirJson(
+    '/publico/desafios/$desafioId/escaneo',
+    metodo: 'POST',
+    cuerpo: {'codigo': codigo},
+    mensaje404: 'Este desafío ya no está disponible.',
+  );
+  try {
+    return ResultadoEscaneo.desdeJson(cuerpo);
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }

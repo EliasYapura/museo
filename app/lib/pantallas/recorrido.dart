@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/desafio_jugable.dart';
+import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
+import 'escaneo.dart';
 
 /// El recorrido de una misión: muestra el desafío que toca resolver (VIS04).
 ///
@@ -22,9 +24,12 @@ class PantallaRecorrido extends StatefulWidget {
 class _PantallaRecorridoState extends State<PantallaRecorrido> {
   late Future<List<DesafioJugable>> _desafios;
 
-  /// Qué desafío de la lista se está jugando. Por ahora es final porque
-  /// avanzar es parte de resolverlos, y resolverlos es VIS05 y VIS06.
-  final int _indice = 0;
+  /// Qué desafío de la lista se está jugando.
+  int _indice = 0;
+
+  /// El escaneo acertado del desafío actual, si ya encontró la pieza. Vuelve a
+  /// null al pasar al siguiente, porque cada desafío tiene la suya.
+  ResultadoEscaneo? _escaneo;
 
   @override
   void initState() {
@@ -47,6 +52,26 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
       _desafios = pedido;
     });
     await pedido.then((_) {}, onError: (_, __) {});
+  }
+
+  /// Abre la cámara y, si el código era el de la pieza, guarda lo que contó el
+  /// museo sobre ella (VIS05).
+  Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
+    final resultado = await Navigator.of(context).push<ResultadoEscaneo>(
+      MaterialPageRoute(builder: (_) => PantallaEscaneo(desafio: desafio)),
+    );
+    // Null es haber salido de la cámara sin acertar: el desafío sigue igual.
+    if (resultado == null || !mounted) return;
+
+    setState(() {
+      _escaneo = resultado;
+      // Los desafíos de escaneo y búsqueda se terminan al encontrar la pieza.
+      // Los que además preguntan algo se quedan acá hasta VIS06.
+      if (resultado.resuelto && _indice + 1 < cuantos) {
+        _indice++;
+        _escaneo = null;
+      }
+    });
   }
 
   @override
@@ -96,10 +121,13 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                   }
 
                   final desafios = snapshot.data!;
+                  final desafio = desafios[_indice];
                   return _Desafio(
-                    desafio: desafios[_indice],
+                    desafio: desafio,
+                    escaneo: _escaneo,
                     posicion: _indice + 1,
                     total: desafios.length,
+                    alEscanear: () => _escanear(desafio, desafios.length),
                   );
                 },
               ),
@@ -115,13 +143,27 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
 class _Desafio extends StatelessWidget {
   final DesafioJugable desafio;
 
+  /// El escaneo acertado, si ya encontró la pieza.
+  final ResultadoEscaneo? escaneo;
+
   /// Qué número de desafío es, contando desde 1. Es la posición en el
   /// recorrido y no el `orden` que guarda la base: así, si el administrador
   /// borró uno y quedó un hueco en la numeración, el visitante no lo ve.
   final int posicion;
   final int total;
 
-  const _Desafio({required this.desafio, required this.posicion, required this.total});
+  final VoidCallback alEscanear;
+
+  const _Desafio({
+    required this.desafio,
+    required this.escaneo,
+    required this.posicion,
+    required this.total,
+    required this.alEscanear,
+  });
+
+  /// Falta encontrar la pieza antes de poder resolver nada.
+  bool get _faltaEscanear => desafio.requiereEscaneo && escaneo == null;
 
   @override
   Widget build(BuildContext context) {
@@ -156,30 +198,64 @@ class _Desafio extends StatelessWidget {
         Text(desafio.enunciado, style: AppText.serif(size: 21)),
         const SizedBox(height: 24),
 
-        if (desafio.requiereEscaneo) _Pieza(desafio: desafio),
+        // Antes de escanear se dice qué buscar; después, lo que el museo
+        // cuenta de la pieza encontrada.
+        if (_faltaEscanear)
+          _Pieza(desafio: desafio)
+        else if (escaneo != null)
+          _Encontrada(escaneo: escaneo!),
 
         const SizedBox(height: 26),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            // Escanear es VIS05 y responder es VIS06.
-            onPressed: null,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.acento,
-              disabledBackgroundColor: AppColors.superficie,
-              disabledForegroundColor: AppColors.textoInactivo,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(
-              // El escaneo va primero: hay que llegar a la pieza antes de que
-              // tenga sentido preguntar algo sobre ella.
-              desafio.requiereEscaneo ? 'Escanear el código' : 'Responder',
-              style: AppText.sans(size: 15, color: AppColors.textoInactivo, peso: FontWeight.w700),
-            ),
+        _Accion(desafio: desafio, escaneo: escaneo, alEscanear: alEscanear),
+      ],
+    );
+  }
+}
+
+/// El botón de abajo, que cambia según lo que falte hacer.
+class _Accion extends StatelessWidget {
+  final DesafioJugable desafio;
+  final ResultadoEscaneo? escaneo;
+  final VoidCallback alEscanear;
+
+  const _Accion({required this.desafio, required this.escaneo, required this.alEscanear});
+
+  @override
+  Widget build(BuildContext context) {
+    // Encontrar la pieza va primero: no tiene sentido preguntar algo sobre
+    // ella antes de llegar hasta la vitrina.
+    final escanear = desafio.requiereEscaneo && escaneo == null;
+    // Un escaneo que ya resolvió el desafío y no avanzó es porque era el
+    // último de la misión. La pantalla de cierre es VIS11.
+    final termino = escaneo?.resuelto ?? false;
+
+    final texto = escanear
+        ? 'Escanear el código'
+        : termino
+            ? 'Terminar la misión'
+            : 'Responder';
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        // Responder es VIS06 y la pantalla final es VIS11.
+        onPressed: escanear ? alEscanear : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.acento,
+          disabledBackgroundColor: AppColors.superficie,
+          disabledForegroundColor: AppColors.textoInactivo,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          texto,
+          style: AppText.sans(
+            size: 15,
+            color: escanear ? AppColors.fondo : AppColors.textoInactivo,
+            peso: FontWeight.w700,
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -227,6 +303,67 @@ class _Pieza extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _Tarjeta(
+      icono: Icons.place_outlined,
+      titulo: desafio.pieza == null ? 'Dónde buscar' : 'Buscá esta pieza',
+      children: [
+        if (desafio.pieza != null) ...[
+          Text(desafio.pieza!, style: AppText.serif(size: 17)),
+          const SizedBox(height: 4),
+        ],
+        Text(
+          desafio.sala ?? 'El museo no registró la sala de esta pieza.',
+          style: AppText.sans(
+            size: desafio.pieza == null ? 16 : 13.5,
+            color: desafio.pieza == null ? AppColors.textoPrimario : AppColors.textoSecundario,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Cuando la encuentres, escaneá el código que está junto a ella.',
+          style: AppText.sans(size: 13),
+        ),
+      ],
+    );
+  }
+}
+
+/// Lo que el museo cuenta de la pieza, una vez encontrada.
+///
+/// Es la recompensa por haber caminado hasta la vitrina, y cuando el desafío
+/// tiene una pregunta, es también con lo que se responde.
+class _Encontrada extends StatelessWidget {
+  final ResultadoEscaneo escaneo;
+
+  const _Encontrada({required this.escaneo});
+
+  @override
+  Widget build(BuildContext context) {
+    return _Tarjeta(
+      icono: Icons.check_circle_outline,
+      titulo: 'La encontraste',
+      children: [
+        if (escaneo.pieza != null) ...[
+          Text(escaneo.pieza!, style: AppText.serif(size: 17)),
+          const SizedBox(height: 8),
+        ],
+        if (escaneo.datoClave != null)
+          Text(escaneo.datoClave!, style: AppText.sans(size: 14)),
+      ],
+    );
+  }
+}
+
+/// El recuadro con el que se muestran la pieza buscada y la encontrada.
+class _Tarjeta extends StatelessWidget {
+  final IconData icono;
+  final String titulo;
+  final List<Widget> children;
+
+  const _Tarjeta({required this.icono, required this.titulo, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -237,34 +374,19 @@ class _Pieza extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.place_outlined, size: 20, color: AppColors.acento),
+          Icon(icono, size: 20, color: AppColors.acento),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  desafio.pieza == null ? 'Dónde buscar' : 'Buscá esta pieza',
+                  titulo,
                   style: AppText.sans(size: 12.5, color: AppColors.textoSecundario)
                       .copyWith(letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 6),
-                if (desafio.pieza != null) ...[
-                  Text(desafio.pieza!, style: AppText.serif(size: 17)),
-                  const SizedBox(height: 4),
-                ],
-                Text(
-                  desafio.sala ?? 'El museo no registró la sala de esta pieza.',
-                  style: AppText.sans(
-                    size: desafio.pieza == null ? 16 : 13.5,
-                    color: desafio.pieza == null ? AppColors.textoPrimario : AppColors.textoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Cuando la encuentres, escaneá el código que está junto a ella.',
-                  style: AppText.sans(size: 13),
-                ),
+                ...children,
               ],
             ),
           ),
