@@ -17,8 +17,15 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.flutter_application_1"
+        // Identificador de la app en el telefono. Android exige al menos dos
+        // segmentos separados por un punto. No es el de por defecto de Flutter
+        // (com.example.flutter_application_1) porque ese lo usa cualquier
+        // tutorial y podria chocar con otra app instalada.
+        //
+        // El `namespace` de arriba sigue con el valor original a proposito: es
+        // el paquete interno del codigo y cambiarlo obliga a mover archivos de
+        // carpeta, sin que se vea en ningun lado.
+        applicationId = "museo.exploradores"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

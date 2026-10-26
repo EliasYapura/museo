@@ -60,7 +60,11 @@ class ErrorApi implements Exception {
 /// primer pedido lo despierta, lo que puede tardar cerca de un minuto. Con una
 /// espera corta, abrir la app por primera vez en el dia mostraria un error de
 /// conexion que no es tal.
-const _espera = Duration(seconds: 30);
+///
+/// Un minuto entero, y no medio: con 30 segundos el primer pedido del dia
+/// llegaba justo al limite y fallaba. El precio es que, cuando de verdad no
+/// hay internet, el aviso tarda mas en aparecer.
+const _espera = Duration(seconds: 60);
 
 /// Pide una dirección de la API y devuelve el JSON ya convertido.
 ///

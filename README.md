@@ -195,7 +195,7 @@ flutter build apk --dart-define=API_URL=https://<api-en-render>
 ### Dos cosas del plan gratuito
 
 - **Render apaga el servicio** tras unos minutos sin pedidos. El siguiente
-  tarda cerca de un minuto en responder, por eso la app espera 30 segundos
+  tarda cerca de un minuto en responder, por eso la app espera 60 segundos
   antes de dar por perdida la conexión.
 - **Supabase pausa el proyecto** tras varios días sin uso. Si falla con
   `tenant or user not found`, hay que restaurarlo desde el panel de Supabase.
