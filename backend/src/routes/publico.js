@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { EVENTOS, registrar } from '../eventos.js';
 import { esIdValido } from '../validaciones/id.js';
 
 // Rutas que consume la app del visitante (VIS01, VIS03). No piden token: el
@@ -129,6 +130,20 @@ publicoRouter.get('/misiones/:id/desafios', async (req, res) => {
   // nada que resolver es peor que decir que no esta disponible.
   if (rows.length === 0) return res.status(404).json(NO_DISPONIBLE);
 
+  // Este pedido es el recorrido empezando: la app lo hace cuando el visitante
+  // toca "Empezar la misión" (SIS02).
+  //
+  // El id de la misión va en datos porque la tabla no tiene columna propia
+  // para ella: tiene la del progreso, que recién existe con SIS03.
+  //
+  // Si la app reintenta tras un error de red, la misión queda iniciada dos
+  // veces. Es ruido tolerable en una bitácora; cuando haya progreso guardado,
+  // un reintento va a retomar el que ya estaba en vez de empezar otro.
+  registrar({
+    tipo: EVENTOS.MISION_INICIADA,
+    datos: { mision_id: Number(req.params.id), desafios: rows.length },
+  });
+
   return res.json({ desafios: rows });
 });
 
@@ -217,6 +232,13 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   // eso. Lo que si arregla es un lector que devuelva el texto en minusculas.
   const escaneado = codigo.trim().toUpperCase();
   if (escaneado !== desafio.codigo.toUpperCase()) {
+    // Escanear la pieza equivocada tambien es una interaccion, y saber cuales
+    // se confunden le sirve al museo tanto como saber cuales se aciertan.
+    registrar({
+      tipo: EVENTOS.OBJETO_ESCANEADO,
+      desafioId: Number(req.params.id),
+      datos: { correcto: false },
+    });
     // No se dice que pieza escaneo. En la busqueda guiada, nombrarla seria
     // darle la respuesta que justamente tenia que deducir.
     return res.json({ correcto: false });
@@ -229,6 +251,13 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   const descuento = sinPregunta
     ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
     : 0;
+  const puntos = sinPregunta ? conDescuento(desafio.puntos, descuento) : 0;
+
+  registrar({
+    tipo: EVENTOS.OBJETO_ESCANEADO,
+    desafioId: Number(req.params.id),
+    datos: { correcto: true, resuelto: sinPregunta, puntos },
+  });
 
   return res.json({
     correcto: true,
@@ -237,7 +266,7 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
     // despues responde la pregunta si el desafio tiene una.
     dato_clave: desafio.dato_clave,
     resuelto: sinPregunta,
-    puntos: sinPregunta ? conDescuento(desafio.puntos, descuento) : 0,
+    puntos,
   });
 });
 
@@ -308,11 +337,18 @@ publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
   const descuento = acerto
     ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
     : 0;
+  const puntos = acerto ? conDescuento(desafio.puntos, descuento) : 0;
 
-  return res.json({
-    correcto: acerto,
-    puntos: acerto ? conDescuento(desafio.puntos, descuento) : 0,
+  // Que desafio se falla y cuanto se falla es lo que despues deja ver si un
+  // enunciado esta mal redactado. El texto de lo que escribio el visitante no
+  // se guarda: para eso alcanza con contar los fallos de cada desafio.
+  registrar({
+    tipo: acerto ? EVENTOS.RESPUESTA_CORRECTA : EVENTOS.RESPUESTA_INCORRECTA,
+    desafioId: Number(req.params.id),
+    datos: acerto ? { puntos, descuento } : {},
   });
+
+  return res.json({ correcto: acerto, puntos });
 });
 
 // GET /publico/desafios/:id/pista?usadas=N — la pista que sigue (VIS07).
@@ -348,5 +384,54 @@ publicoRouter.get('/desafios/:id/pista', async (req, res) => {
   // ayuda de la que ya tiene.
   if (!rows[0]) return res.status(404).json({ error: 'No hay más pistas para este desafío' });
 
+  registrar({
+    tipo: EVENTOS.PISTA_USADA,
+    desafioId: Number(req.params.id),
+    datos: { orden: usadas + 1, penalizacion: rows[0].penalizacion },
+  });
+
   return res.json({ pista: rows[0] });
+});
+
+// Tope de puntos que se acepta como resultado informado. No es una regla del
+// juego: es para que un numero disparatado no entre en la bitacora.
+const PUNTOS_MAXIMOS_MISION = 999999;
+
+// POST /publico/misiones/:id/completada — deja constancia de que el visitante
+// termino la mision (SIS02).
+//
+// Existe solo para la bitacora: la app ya sabe que termino y muestra el
+// resultado sin preguntarle nada al servidor. Por eso responde 204, sin
+// cuerpo, y por eso el puntaje que llega es el que informa la app, con la
+// misma salvedad que pistas_usadas: hasta SIS03, el servidor no lleva el
+// progreso y no tiene con que contrastarlo.
+publicoRouter.post('/misiones/:id/completada', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_DISPONIBLE);
+
+  const { puntos } = req.body ?? {};
+  const puntosValidos =
+    puntos === undefined ||
+    puntos === null ||
+    (typeof puntos === 'number' &&
+      Number.isInteger(puntos) &&
+      puntos >= 0 &&
+      puntos <= PUNTOS_MAXIMOS_MISION);
+  if (!puntosValidos) {
+    return res.status(400).json({ error: 'El puntaje informado no es válido' });
+  }
+
+  // Misma comprobacion que el resto: no se registra el final de una mision que
+  // el museo bajo, igual que no se habria podido empezar.
+  const mision = await pool.query(
+    'SELECT 1 FROM misiones WHERE id = $1 AND activa = TRUE AND archivada = FALSE',
+    [req.params.id]
+  );
+  if (!mision.rows[0]) return res.status(404).json(NO_DISPONIBLE);
+
+  registrar({
+    tipo: EVENTOS.MISION_COMPLETADA,
+    datos: { mision_id: Number(req.params.id), puntos: puntos ?? null },
+  });
+
+  return res.status(204).end();
 });

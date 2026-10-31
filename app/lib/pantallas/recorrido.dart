@@ -183,6 +183,11 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
 
   /// Cierra el recorrido y muestra cómo le fue (VIS11).
   void _terminar(List<DesafioJugable> desafios) {
+    // Deja constancia en la bitácora del museo (SIS02). No se espera a propósito:
+    // si la red está lenta o falla, el visitante igual tiene que ver cómo le fue.
+    // ignore() descarta también el error, que acá no hay nada que hacer con él.
+    avisarMisionCompletada(widget.mision.id, _puntos).ignore();
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => PantallaResultado(

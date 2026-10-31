@@ -708,3 +708,17 @@ Future<({String texto, int penalizacion})> pedirPista(int desafioId, int usadas)
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
 }
+
+/// POST /publico/misiones/:id/completada — deja constancia de que el visitante
+/// terminó la misión (SIS02).
+///
+/// Es sólo para la bitácora del museo: la app ya sabe que terminó y muestra el
+/// resultado sin esperar esta respuesta. Quien la llama la deja corriendo y no
+/// la espera, así una red lenta no demora la pantalla de resultado.
+Future<void> avisarMisionCompletada(int misionId, int puntos) async {
+  await _pedirJson(
+    '/publico/misiones/$misionId/completada',
+    metodo: 'POST',
+    cuerpo: {'puntos': puntos},
+  );
+}
