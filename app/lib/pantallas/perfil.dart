@@ -4,12 +4,13 @@ import '../estilo.dart';
 import '../sesion/sesion.dart';
 import 'administracion.dart';
 import 'login.dart';
+import 'registro.dart';
 
 /// Pestaña Perfil.
 ///
 /// Sin sesión iniciada se explica que para recorrer no hace falta cuenta y se
-/// ofrece el ingreso del equipo del museo. Con sesión se muestra quién entró y,
-/// si es administrador, la puerta a la parte de administración.
+/// ofrece crear una o entrar con la que ya se tenga. Con sesión se muestra
+/// quién entró y, si es administrador, la puerta a la parte de administración.
 class PantallaPerfil extends StatelessWidget {
   const PantallaPerfil({super.key});
 
@@ -61,6 +62,10 @@ class _SinSesion extends StatelessWidget {
           style: AppText.sans(size: 14),
         ),
         const SizedBox(height: 28),
+        // Una sola tarjeta para los dos casos: el visitante que quiere que le
+        // guarden el avance y el equipo del museo que viene a cargar
+        // contenido. Entran por la misma puerta, así que ofrecerles dos
+        // botones distintos para lo mismo sólo haría dudar cuál tocar.
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -71,13 +76,33 @@ class _SinSesion extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('¿Trabajás en el museo?', style: AppText.serif(size: 17)),
+              Text('¿Querés que se guarde tu avance?', style: AppText.serif(size: 17)),
               const SizedBox(height: 8),
               Text(
-                'Ingresá con tu cuenta para cargar misiones, objetos y desafíos.',
+                'Con una cuenta podés dejar una misión por la mitad y retomarla '
+                'donde ibas. Si trabajás en el museo, es también por acá que '
+                'entrás a cargar misiones, objetos y desafíos.',
                 style: AppText.sans(size: 14),
               ),
               const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const PantallaRegistro()),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.acento,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    'Crear una cuenta',
+                    style: AppText.sans(size: 15, color: AppColors.fondo, peso: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -91,7 +116,7 @@ class _SinSesion extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
-                    'Ingresar',
+                    'Ya tengo cuenta',
                     style: AppText.sans(
                       size: 15,
                       color: AppColors.acento,

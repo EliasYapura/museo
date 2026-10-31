@@ -722,3 +722,18 @@ Future<void> avisarMisionCompletada(int misionId, int puntos) async {
     cuerpo: {'puntos': puntos},
   );
 }
+
+/// POST /auth/registro — crea una cuenta de visitante.
+///
+/// No devuelve token: la API sólo crea el usuario. Quien la llama inicia
+/// sesión después con las mismas credenciales.
+///
+/// El rol no se manda ni se puede elegir: lo pone la base, y es `visitante`.
+/// Los administradores se promueven desde la base, no desde la app.
+Future<void> crearCuentaVisitante(String nombre, String email, String password) async {
+  await _pedirJson(
+    '/auth/registro',
+    metodo: 'POST',
+    cuerpo: {'nombre': nombre, 'email': email, 'password': password},
+  );
+}

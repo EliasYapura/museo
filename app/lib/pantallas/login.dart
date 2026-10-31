@@ -4,11 +4,13 @@ import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
 import '../widgets/formulario.dart';
+import 'registro.dart';
 
-/// Inicio de sesión del administrador.
+/// Inicio de sesión, la misma para los dos roles.
 ///
-/// El visitante no inicia sesión: recorre el museo sin cuenta. Esta pantalla
-/// es la puerta a la parte de administración.
+/// Un visitante puede recorrer el museo sin cuenta, como siempre; con una, el
+/// avance le queda guardado y puede retomar una misión empezada (SIS03). El
+/// equipo del museo entra por acá a la parte de administración.
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
 
@@ -74,8 +76,8 @@ class _PantallaLoginState extends State<PantallaLogin> {
             Text('Ingresar', style: AppText.serif(size: 26)),
             const SizedBox(height: 10),
             Text(
-              'El acceso es para el equipo del museo. Para recorrer las misiones '
-              'no hace falta ninguna cuenta.',
+              'Con tu cuenta de visitante el museo guarda tu avance. Si trabajás '
+              'en el museo, entrás por acá a cargar contenido.',
               style: AppText.sans(size: 14),
             ),
             const SizedBox(height: 24),
@@ -161,6 +163,28 @@ class _PantallaLoginState extends State<PantallaLogin> {
                         style: AppText.sans(
                           size: 15,
                           color: _enviando ? AppColors.textoInactivo : AppColors.fondo,
+                          peso: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // La salida para quien llegó acá sin tener cuenta todavía.
+                  // pushReplacement y no push: volver del registro a este
+                  // formulario no tendría sentido, porque registrarse ya deja
+                  // la sesión iniciada.
+                  Center(
+                    child: TextButton(
+                      onPressed: _enviando
+                          ? null
+                          : () => Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(builder: (_) => const PantallaRegistro()),
+                              ),
+                      child: Text(
+                        '¿No tenés cuenta? Creá una',
+                        style: AppText.sans(
+                          size: 13.5,
+                          color: AppColors.acento,
                           peso: FontWeight.w700,
                         ),
                       ),
