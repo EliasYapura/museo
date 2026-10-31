@@ -39,6 +39,13 @@ class DesafioJugable {
   /// Sala donde está la pieza. Null si el desafío no tiene pieza.
   final String? sala;
 
+  /// Lo que cuesta cada pista, en el orden en que se entregan (VIS07).
+  ///
+  /// Los textos no están acá: se piden de a uno, cuando el visitante decide
+  /// pagar. Lo que sí viaja es el precio, porque hay que poder mostrárselo
+  /// antes de cobrárselo.
+  final List<int> penalizaciones;
+
   const DesafioJugable({
     required this.id,
     required this.orden,
@@ -50,7 +57,22 @@ class DesafioJugable {
     required this.requiereEscaneo,
     required this.pieza,
     required this.sala,
+    required this.penalizaciones,
   });
+
+  /// Si el administrador le cargó alguna pista (ADM13).
+  bool get tienePistas => penalizaciones.isNotEmpty;
+
+  /// Cuánto vale el desafío después de pedir [usadas] pistas.
+  ///
+  /// Es sólo para mostrarlo: los puntos que se otorgan los calcula el
+  /// servidor, con esta misma cuenta, al comprobar la respuesta o el código.
+  /// Acá se repite para poder avisarle al visitante qué le va a quedar antes
+  /// de que resuelva, no para decidirlo.
+  int valeCon(int usadas) {
+    final descuento = penalizaciones.take(usadas).fold(0, (suma, costo) => suma + costo);
+    return puntos - descuento < 0 ? 0 : puntos - descuento;
+  }
 
   /// Si además de encontrar la pieza hay algo que contestar (VIS06). Los
   /// desafíos de escaneo y de búsqueda se resuelven llegando a la pieza.
@@ -69,6 +91,9 @@ class DesafioJugable {
       requiereEscaneo: json['requiere_escaneo'] as bool? ?? false,
       pieza: json['pieza'] as String?,
       sala: json['sala'] as String?,
+      // Viene como "pistas" porque es lo que la API manda de las pistas: no
+      // cuántas hay, sino lo que cuesta cada una.
+      penalizaciones: ((json['pistas'] as List?) ?? const []).whereType<int>().toList(),
     );
   }
 }

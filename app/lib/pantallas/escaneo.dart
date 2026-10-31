@@ -17,7 +17,15 @@ import '../modelos/escaneo.dart';
 class PantallaEscaneo extends StatefulWidget {
   final DesafioJugable desafio;
 
-  const PantallaEscaneo({super.key, required this.desafio});
+  /// Cuántas pistas pidió el visitante en este desafío. Se le pasa al servidor
+  /// junto con el código: es él quien descuenta lo que cuestan (VIS07).
+  final int pistasUsadas;
+
+  const PantallaEscaneo({
+    super.key,
+    required this.desafio,
+    this.pistasUsadas = 0,
+  });
 
   @override
   State<PantallaEscaneo> createState() => _PantallaEscaneoState();
@@ -79,7 +87,11 @@ class _PantallaEscaneoState extends State<PantallaEscaneo> {
     });
 
     try {
-      final resultado = await escanearCodigo(widget.desafio.id, codigo);
+      final resultado = await escanearCodigo(
+        widget.desafio.id,
+        codigo,
+        pistasUsadas: widget.pistasUsadas,
+      );
       if (!mounted) return;
 
       if (resultado.correcto) {

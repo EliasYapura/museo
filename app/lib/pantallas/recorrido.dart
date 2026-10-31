@@ -37,12 +37,19 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   /// último de la misión.
   bool _resuelto = false;
 
+  /// Los textos de las pistas que ya pidió en el desafío actual, en orden
+  /// (VIS07). Se vacía al pasar al siguiente: las pistas son de cada desafío.
+  List<String> _pistas = const [];
+
+  /// Mientras se pide una pista no se puede pedir otra.
+  bool _pidiendoPista = false;
+
   /// Lo que lleva ganado en este recorrido (VIS08).
   ///
   /// Suma lo que devuelve el servidor en cada acierto y no los puntos que
-  /// vale el desafío. Hoy son el mismo número, pero cuando las pistas
-  /// descuenten (VIS07, Sprint 4) el servidor va a devolver menos, y acá hay
-  /// que mostrar lo que de verdad se ganó.
+  /// vale el desafío: cuando el visitante pide pistas, el servidor descuenta
+  /// lo que cuestan y devuelve menos (VIS07). Acá se muestra lo que de verdad
+  /// se ganó.
   ///
   /// Vive en memoria, como el resto del recorrido: guardarlo es SIS03.
   int _puntos = 0;
@@ -76,24 +83,102 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     if (_indice + 1 < cuantos) {
       _indice++;
       _escaneo = null;
+      _pistas = const [];
     } else {
       _resuelto = true;
     }
   }
 
+  /// Un aviso corto abajo de la pantalla.
+  void _avisar(String texto, {Duration duracion = const Duration(seconds: 2)}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(texto), duration: duracion),
+    );
+  }
+
   /// Suma lo ganado y pasa al desafío siguiente (VIS08).
   void _sumar(int puntos, int cuantos) {
+    // Se mira antes del setState: avanzar vacía la lista de pistas.
+    final conAyuda = _pistas.isNotEmpty;
+
     setState(() {
       _puntos += puntos;
       _avanzar(cuantos);
     });
+
     // El total de arriba cambia solo, sin decir de dónde salió. Este aviso es
     // el que conecta "resolví esto" con "gané tanto".
     if (puntos > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('+$puntos pts'), duration: const Duration(seconds: 2)),
+      _avisar('+$puntos pts');
+    } else if (conAyuda) {
+      // Acertó, pero las pistas se llevaron todos los puntos del desafío. Sin
+      // este aviso se resolvería en silencio y parecería que no pasó nada.
+      _avisar(
+        '¡Correcto! Las pistas se llevaron los puntos.',
+        duracion: const Duration(seconds: 3),
       );
     }
+  }
+
+  /// Pide la pista que sigue, avisando antes lo que cuesta (VIS07).
+  ///
+  /// El puntaje de arriba no se mueve en este momento: lo que cuesta la pista
+  /// se descuenta de los puntos que el servidor otorga al resolver el desafío.
+  /// Lo que cambia es cuánto va a pagar este desafío, y eso sí se ve.
+  Future<void> _pedirPista(DesafioJugable desafio) async {
+    // No debería poder tocarse sin pistas por delante, pero el administrador
+    // pudo haber borrado alguna con el recorrido ya abierto.
+    if (_pistas.length >= desafio.penalizaciones.length) return;
+
+    final cuesta = desafio.penalizaciones[_pistas.length];
+    if (cuesta > 0) {
+      final seguro = await _confirmarPista(desafio, cuesta);
+      if (seguro != true || !mounted) return;
+    }
+
+    setState(() => _pidiendoPista = true);
+    try {
+      final pista = await pedirPista(desafio.id, _pistas.length);
+      if (!mounted) return;
+      setState(() => _pistas = [..._pistas, pista.texto]);
+    } on ErrorApi catch (error) {
+      if (mounted) _avisar(error.mensaje, duracion: const Duration(seconds: 3));
+    } catch (error, pila) {
+      debugPrint('Fallo al pedir la pista: $error\n$pila');
+      if (mounted) _avisar('No se pudo pedir la pista.');
+    } finally {
+      if (mounted) setState(() => _pidiendoPista = false);
+    }
+  }
+
+  /// Una pista que cuesta puntos no se cobra por un toque sin querer.
+  Future<bool?> _confirmarPista(DesafioJugable desafio, int cuesta) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.superficie,
+        title: Text('¿Pedir la pista?', style: AppText.serif(size: 19)),
+        content: Text(
+          'Cuesta $cuesta ${cuesta == 1 ? 'punto' : 'puntos'}. Si resolvés el '
+          'desafío vas a sumar ${desafio.valeCon(_pistas.length + 1)} en lugar '
+          'de ${desafio.valeCon(_pistas.length)}.',
+          style: AppText.sans(size: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Mejor no', style: AppText.sans(size: 14, peso: FontWeight.w700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Sí, dame la pista',
+              style: AppText.sans(size: 14, color: AppColors.acento, peso: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Cierra el recorrido y muestra cómo le fue (VIS11).
@@ -117,7 +202,9 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   /// museo sobre ella (VIS05).
   Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
     final resultado = await Navigator.of(context).push<ResultadoEscaneo>(
-      MaterialPageRoute(builder: (_) => PantallaEscaneo(desafio: desafio)),
+      MaterialPageRoute(
+        builder: (_) => PantallaEscaneo(desafio: desafio, pistasUsadas: _pistas.length),
+      ),
     );
     // Null es haber salido de la cámara sin acertar: el desafío sigue igual.
     if (resultado == null || !mounted) return;
@@ -185,6 +272,14 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                     resuelto: _resuelto,
                     posicion: _indice + 1,
                     total: desafios.length,
+                    pistas: _pistas,
+                    pidiendoPista: _pidiendoPista,
+                    // Sin pistas por delante, o con el desafío ya resuelto, no
+                    // hay nada que pedir y el botón no aparece.
+                    alPedirPista:
+                        _pistas.length < desafio.penalizaciones.length && !_resuelto
+                            ? () => _pedirPista(desafio)
+                            : null,
                     alEscanear: () => _escanear(desafio, desafios.length),
                     alAcertar: (puntos) => _sumar(puntos, desafios.length),
                     alTerminar: () => _terminar(desafios),
@@ -215,6 +310,15 @@ class _Desafio extends StatelessWidget {
   final int posicion;
   final int total;
 
+  /// Los textos de las pistas que el visitante ya pidió en este desafío
+  /// (VIS07).
+  final List<String> pistas;
+
+  final bool pidiendoPista;
+
+  /// Null cuando no quedan pistas por pedir o el desafío ya está resuelto.
+  final VoidCallback? alPedirPista;
+
   final VoidCallback alEscanear;
 
   /// Avisa que el desafío quedó resuelto, con los puntos que sumó.
@@ -228,6 +332,9 @@ class _Desafio extends StatelessWidget {
     required this.resuelto,
     required this.posicion,
     required this.total,
+    required this.pistas,
+    required this.pidiendoPista,
+    required this.alPedirPista,
     required this.alEscanear,
     required this.alAcertar,
     required this.alTerminar,
@@ -257,8 +364,12 @@ class _Desafio extends StatelessWidget {
             ),
             // "Vale" y no sólo el número: arriba está el total ganado, y dos
             // cifras en pts sin aclarar cuál es cuál se confunden solas.
+            //
+            // Es lo que vale después de las pistas pedidas, no lo que vale a
+            // secas: si dijera siempre el número del administrador, el
+            // visitante sumaría menos de lo que la pantalla le prometió.
             Text(
-              'Vale ${desafio.puntos} pts',
+              'Vale ${desafio.valeCon(pistas.length)} pts',
               style: AppText.sans(size: 13, color: AppColors.textoSecundario),
             ),
           ],
@@ -280,6 +391,19 @@ class _Desafio extends StatelessWidget {
           _Pieza(desafio: desafio)
         else if (escaneo != null)
           _Encontrada(escaneo: escaneo!),
+
+        // Las pistas van acá, antes de la acción: el visitante las pide
+        // justamente cuando ya leyó el enunciado y lo que cuenta la pieza y no
+        // sabe cómo seguir (VIS07).
+        if (pistas.isNotEmpty || alPedirPista != null) ...[
+          const SizedBox(height: 22),
+          _Pistas(
+            desafio: desafio,
+            pistas: pistas,
+            pidiendo: pidiendoPista,
+            alPedir: alPedirPista,
+          ),
+        ],
 
         // Al resolver un desafío del medio, la prueba de que estuvo bien es
         // que aparece el siguiente. En el último no aparece nada, así que si
@@ -307,6 +431,7 @@ class _Desafio extends StatelessWidget {
           _Pregunta(
             key: ValueKey(desafio.id),
             desafio: desafio,
+            pistasUsadas: pistas.length,
             alAcertar: alAcertar,
           )
         else
@@ -323,6 +448,139 @@ class _Desafio extends StatelessWidget {
   }
 }
 
+/// Las pistas del desafío: las que el visitante ya pidió y el botón para
+/// pedir la que sigue (VIS07).
+///
+/// Las pistas no vienen con el desafío: cada una se le pide al servidor en el
+/// momento, porque tenerlas en el teléfono sin haberlas pedido sería tener la
+/// ayuda gratis.
+class _Pistas extends StatelessWidget {
+  final DesafioJugable desafio;
+
+  /// Los textos ya recibidos, en orden.
+  final List<String> pistas;
+
+  final bool pidiendo;
+
+  /// Null cuando no quedan pistas por pedir o el desafío ya está resuelto.
+  final VoidCallback? alPedir;
+
+  const _Pistas({
+    required this.desafio,
+    required this.pistas,
+    required this.pidiendo,
+    required this.alPedir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cuantas = desafio.penalizaciones.length;
+    final siguiente = pistas.length;
+    // Lo que cuesta la que sigue. Cuando no queda ninguna no se usa, porque
+    // entonces alPedir es null y el botón no se dibuja.
+    final cuesta = siguiente < cuantas ? desafio.penalizaciones[siguiente] : 0;
+    final vale = desafio.valeCon(pistas.length);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < pistas.length; i++) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.superficie,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borde),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.lightbulb_outline, size: 18, color: AppColors.acento),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pista ${i + 1}',
+                        style: AppText.sans(
+                          size: 12,
+                          color: AppColors.textoInactivo,
+                          peso: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        pistas[i],
+                        style: AppText.sans(size: 14.5, color: AppColors.textoPrimario),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        // Lo que ya costó pedirlas. El encabezado muestra el número nuevo; acá
+        // se dice de dónde salió, que es lo que el visitante no vio pasar.
+        if (pistas.isNotEmpty) ...[
+          Text(
+            vale == desafio.puntos
+                ? 'Esa ayuda no te costó puntos.'
+                : 'Con ${pistas.length == 1 ? 'esa pista' : 'esas pistas'}, este '
+                    'desafío pasó de ${desafio.puntos} a $vale pts.',
+            style: AppText.sans(size: 12.5, color: AppColors.textoInactivo),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        if (alPedir != null) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: pidiendo ? null : alPedir,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: pidiendo ? AppColors.borde : AppColors.acento,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: Icon(
+                Icons.lightbulb_outline,
+                size: 18,
+                color: pidiendo ? AppColors.textoInactivo : AppColors.acento,
+              ),
+              // El precio va en el botón: pedir una pista cuesta puntos y eso
+              // tiene que leerse antes de tocarlo, no después.
+              label: Text(
+                pidiendo
+                    ? 'Pidiendo…'
+                    : cuesta > 0
+                        ? 'Pedir una pista  ·  −$cuesta pts'
+                        : 'Pedir una pista',
+                style: AppText.sans(
+                  size: 14,
+                  color: pidiendo ? AppColors.textoInactivo : AppColors.acento,
+                  peso: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pista ${siguiente + 1} de $cuantas.',
+            style: AppText.sans(size: 12.5, color: AppColors.textoInactivo),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 /// La pregunta del desafío y el botón para contestarla (VIS06).
 ///
 /// Manda la respuesta al servidor, que es quien sabe cuál era la correcta.
@@ -331,11 +589,20 @@ class _Desafio extends StatelessWidget {
 class _Pregunta extends StatefulWidget {
   final DesafioJugable desafio;
 
+  /// Cuántas pistas pidió el visitante en este desafío. Viaja con la respuesta
+  /// para que el servidor descuente lo que cuestan (VIS07).
+  final int pistasUsadas;
+
   /// Se llama cuando la respuesta estuvo bien, con los puntos que sumó. El
   /// recorrido avanza y este widget se va junto con el desafío.
   final void Function(int puntos) alAcertar;
 
-  const _Pregunta({super.key, required this.desafio, required this.alAcertar});
+  const _Pregunta({
+    super.key,
+    required this.desafio,
+    required this.pistasUsadas,
+    required this.alAcertar,
+  });
 
   @override
   State<_Pregunta> createState() => _PreguntaState();
@@ -363,7 +630,11 @@ class _PreguntaState extends State<_Pregunta> {
       _aviso = '';
     });
     try {
-      final resultado = await responderDesafio(widget.desafio.id, _respuesta);
+      final resultado = await responderDesafio(
+        widget.desafio.id,
+        _respuesta,
+        pistasUsadas: widget.pistasUsadas,
+      );
       if (!mounted) return;
       if (resultado.correcto) {
         widget.alAcertar(resultado.puntos);

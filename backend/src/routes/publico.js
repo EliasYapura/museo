@@ -92,7 +92,14 @@ const COLUMNAS_DESAFIO = `d.id, d.orden, d.tipo, d.enunciado, d.puntos,
                   -- del enunciado, y nombrarla lo resolveria solo.
                   CASE WHEN d.tipo = 'busqueda_guiada' THEN NULL ELSE o.nombre END AS pieza,
                   -- La sala si, en todos los casos: es a donde hay que ir.
-                  s.nombre AS sala`;
+                  s.nombre AS sala,
+                  -- Lo que cuesta cada pista, en el orden en que se entregan
+                  -- (VIS07). Viajan los numeros y no los textos: el precio hay
+                  -- que mostrarlo antes de cobrarlo, pero la pista en si se
+                  -- pide de a una. Ojo que en la administracion el campo
+                  -- "pistas" es cuantas hay; aca es cuanto cuesta cada una.
+                  COALESCE((SELECT json_agg(p.penalizacion ORDER BY p.orden, p.id)
+                            FROM pistas p WHERE p.desafio_id = d.id), '[]'::json) AS pistas`;
 
 // GET /publico/misiones/:id/desafios — los desafios a jugar, en orden (VIS04).
 //
@@ -131,6 +138,47 @@ publicoRouter.get('/misiones/:id/desafios', async (req, res) => {
 const TIPOS_SIN_PREGUNTA = ['escaneo_objeto', 'busqueda_guiada'];
 
 const DESAFIO_NO_DISPONIBLE = { error: 'Este desafío ya no está disponible' };
+
+// Tope de pistas que se admite haber usado. No es una regla del juego: es para
+// no aceptar un numero cualquiera en una consulta por venir de afuera.
+const MAXIMO_PISTAS_USADAS = 100;
+
+// Cuantas pistas dice la app haber pedido. Si no viene el dato, o viene algo
+// que no es un entero positivo, se cuenta como ninguna: una version de la app
+// anterior a VIS07 no manda nada y tiene que seguir jugando igual.
+function pistasUsadasDe(cuerpo) {
+  const valor = cuerpo?.pistas_usadas;
+  if (typeof valor !== 'number' || !Number.isInteger(valor) || valor <= 0) return 0;
+  return Math.min(valor, MAXIMO_PISTAS_USADAS);
+}
+
+// Cuanto descuentan las primeras `usadas` pistas del desafio (VIS07).
+//
+// La cuenta se hace aca y no en la app para que el puntaje tenga un solo
+// dueño, el mismo que decide si la respuesta estuvo bien.
+//
+// El limite de esto, dicho claro: hoy la app es la que informa cuantas pistas
+// pidio, porque el servidor no lleva el progreso del recorrido. Un APK
+// modificado podria decir cero y quedarse con todos los puntos. Se arregla
+// cuando el progreso se guarde (SIS03) y el dato salga de la base en vez del
+// cuerpo del pedido.
+async function descuentoPorPistas(desafioId, usadas) {
+  if (usadas <= 0) return 0;
+  const { rows } = await pool.query(
+    `SELECT COALESCE(sum(penalizacion), 0)::int AS descuento
+       FROM (SELECT penalizacion FROM pistas
+              WHERE desafio_id = $1
+              ORDER BY orden, id
+              LIMIT $2) AS usadas`,
+    [desafioId, usadas]
+  );
+  return rows[0].descuento;
+}
+
+// Los puntos que quedan despues del descuento. Nunca menos de cero: pedir
+// muchas pistas puede dejar un desafio sin premio, pero no puede hacer que
+// resolverlo reste puntos.
+const conDescuento = (puntos, descuento) => Math.max(0, puntos - descuento);
 
 // POST /publico/desafios/:id/escaneo — valida el codigo escaneado contra la
 // pieza que el desafio espera (VIS05, SIS01).
@@ -175,6 +223,13 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   }
 
   const sinPregunta = TIPOS_SIN_PREGUNTA.includes(desafio.tipo);
+  // El descuento por pistas solo hace falta si este escaneo ya resuelve el
+  // desafio. Si sigue con una pregunta, los puntos se otorgan al contestarla
+  // y el descuento se aplica alla.
+  const descuento = sinPregunta
+    ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
+    : 0;
+
   return res.json({
     correcto: true,
     pieza: desafio.pieza,
@@ -182,7 +237,7 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
     // despues responde la pregunta si el desafio tiene una.
     dato_clave: desafio.dato_clave,
     resuelto: sinPregunta,
-    puntos: sinPregunta ? desafio.puntos : 0,
+    puntos: sinPregunta ? conDescuento(desafio.puntos, descuento) : 0,
   });
 });
 
@@ -248,5 +303,50 @@ publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
       ? limpiar(respuesta) === limpiar(desafio.respuesta_correcta)
       : coincide(respuesta, desafio.respuesta_correcta, desafio.configuracion?.tolerancia);
 
-  return res.json({ correcto: acerto, puntos: acerto ? desafio.puntos : 0 });
+  // Equivocarse no descuenta nada, asi que el descuento solo se consulta
+  // cuando hay puntos que dar.
+  const descuento = acerto
+    ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
+    : 0;
+
+  return res.json({
+    correcto: acerto,
+    puntos: acerto ? conDescuento(desafio.puntos, descuento) : 0,
+  });
+});
+
+// GET /publico/desafios/:id/pista?usadas=N — la pista que sigue (VIS07).
+//
+// Se entrega de a una y a pedido. Mandarlas junto con los desafios seria
+// regalar la ayuda: el visitante las tendria sin haberlas pedido y sin que le
+// costaran nada. `usadas` es cuantas ya recibio, asi que lo que se devuelve es
+// la siguiente.
+publicoRouter.get('/desafios/:id/pista', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(DESAFIO_NO_DISPONIBLE);
+
+  // Number('') y Number(undefined) no son lo mismo: sin el ?? 0, no mandar el
+  // parametro daria NaN y se rechazaria un pedido que vale.
+  const usadas = Number(req.query.usadas ?? 0);
+  if (!Number.isInteger(usadas) || usadas < 0 || usadas > MAXIMO_PISTAS_USADAS) {
+    return res.status(400).json({ error: 'No se entendió qué pista pedir' });
+  }
+
+  // El JOIN con misiones, igual que en el escaneo: el id de un desafio suelto
+  // no tiene que dejar jugar una mision que el museo despublico o archivo.
+  const { rows } = await pool.query(
+    `SELECT p.texto, p.penalizacion
+       FROM desafios d
+       JOIN misiones m ON m.id = d.mision_id
+       JOIN pistas p ON p.desafio_id = d.id
+      WHERE d.id = $1 AND m.activa = TRUE AND m.archivada = FALSE
+      ORDER BY p.orden, p.id
+      OFFSET $2 LIMIT 1`,
+    [req.params.id, usadas]
+  );
+  // Sin fila puede ser que el desafio no este disponible, que no tenga pistas
+  // o que ya se hayan dado todas. Para el visitante son lo mismo: no hay mas
+  // ayuda de la que ya tiene.
+  if (!rows[0]) return res.status(404).json({ error: 'No hay más pistas para este desafío' });
+
+  return res.json({ pista: rows[0] });
 });

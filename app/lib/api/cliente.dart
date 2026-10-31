@@ -636,11 +636,18 @@ Future<List<DesafioJugable>> obtenerDesafiosJugables(int misionId) async {
 /// Un código equivocado no es un error: la API contesta 200 con
 /// `correcto: false` y la pantalla lo cuenta como un intento fallido. Lo que
 /// sí es error es un 409, que significa que este desafío no se escanea.
-Future<ResultadoEscaneo> escanearCodigo(int desafioId, String codigo) async {
+///
+/// [pistasUsadas] es cuántas pistas pidió el visitante en este desafío: el
+/// servidor descuenta lo que cuestan de los puntos que otorga (VIS07).
+Future<ResultadoEscaneo> escanearCodigo(
+  int desafioId,
+  String codigo, {
+  int pistasUsadas = 0,
+}) async {
   final cuerpo = await _pedirJson(
     '/publico/desafios/$desafioId/escaneo',
     metodo: 'POST',
-    cuerpo: {'codigo': codigo},
+    cuerpo: {'codigo': codigo, 'pistas_usadas': pistasUsadas},
     mensaje404: 'Este desafío ya no está disponible.',
   );
   try {
@@ -655,17 +662,47 @@ Future<ResultadoEscaneo> escanearCodigo(int desafioId, String codigo) async {
 /// Quién decide si está bien es el servidor, que además aplica la tolerancia
 /// con la que el administrador cargó la respuesta. Acá no se sabe cuál era la
 /// correcta ni cuando se falla.
-Future<({bool correcto, int puntos})> responderDesafio(int desafioId, String respuesta) async {
+///
+/// [pistasUsadas] es cuántas pistas pidió el visitante en este desafío: el
+/// servidor descuenta lo que cuestan de los puntos que otorga (VIS07).
+Future<({bool correcto, int puntos})> responderDesafio(
+  int desafioId,
+  String respuesta, {
+  int pistasUsadas = 0,
+}) async {
   final cuerpo = await _pedirJson(
     '/publico/desafios/$desafioId/respuesta',
     metodo: 'POST',
-    cuerpo: {'respuesta': respuesta},
+    cuerpo: {'respuesta': respuesta, 'pistas_usadas': pistasUsadas},
     mensaje404: 'Este desafío ya no está disponible.',
   );
   try {
     return (
       correcto: cuerpo['correcto'] as bool? ?? false,
       puntos: cuerpo['puntos'] as int? ?? 0,
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /publico/desafios/:id/pista — la pista que sigue (VIS07).
+///
+/// [usadas] es cuántas pistas ya recibió el visitante en este desafío, así que
+/// lo que vuelve es la siguiente. Las pistas no llegan con los desafíos: se
+/// piden de a una, cuando el visitante decide pagar lo que cuestan.
+///
+/// Un 404 es que ya no quedan, no una falla.
+Future<({String texto, int penalizacion})> pedirPista(int desafioId, int usadas) async {
+  final cuerpo = await _pedirJson(
+    '/publico/desafios/$desafioId/pista?usadas=$usadas',
+    mensaje404: 'No hay más pistas para este desafío.',
+  );
+  try {
+    final pista = cuerpo['pista'] as Map<String, dynamic>;
+    return (
+      texto: pista['texto'] as String,
+      penalizacion: pista['penalizacion'] as int,
     );
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
