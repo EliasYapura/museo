@@ -64,6 +64,10 @@ class Desafio {
   /// Null en los tipos que se resuelven encontrando la pieza.
   final String? respuestaCorrecta;
 
+  /// Cuántas pistas tiene cargadas (ADM13). El texto de las pistas no viene en
+  /// el listado: se pide aparte, en la pantalla que las administra.
+  final int pistas;
+
   const Desafio({
     required this.id,
     required this.misionId,
@@ -76,6 +80,7 @@ class Desafio {
     required this.objetoId,
     required this.configuracion,
     required this.respuestaCorrecta,
+    required this.pistas,
   });
 
   /// Nombre del tipo para mostrar. Si la API mandó uno desconocido se muestra
@@ -92,16 +97,18 @@ class Desafio {
   /// 'exacta' o 'flexible' en una respuesta corta; null en los demás tipos.
   String? get tolerancia => configuracion['tolerancia'] as String?;
 
-  /// Lo propio del tipo, resumido para la tarjeta del listado, así no hay que
-  /// abrir cada desafío para saber cómo está armado.
+  /// Lo propio del tipo y las pistas cargadas, resumido para la tarjeta del
+  /// listado, así no hay que abrir cada desafío para saber cómo está armado.
   String? get resumen {
+    final partes = <String>[];
     if (tipo == TipoDesafio.preguntaOpcionMultiple && opciones.isNotEmpty) {
-      return '${opciones.length} opciones';
+      partes.add('${opciones.length} opciones');
     }
     if (tipo == TipoDesafio.respuestaCorta && tolerancia != null) {
-      return tolerancia == 'exacta' ? 'comparación exacta' : 'comparación flexible';
+      partes.add(tolerancia == 'exacta' ? 'comparación exacta' : 'comparación flexible');
     }
-    return null;
+    if (pistas > 0) partes.add(pistas == 1 ? '1 pista' : '$pistas pistas');
+    return partes.isEmpty ? null : partes.join('  ·  ');
   }
 
   factory Desafio.desdeJson(Map<String, dynamic> json) {
@@ -117,6 +124,9 @@ class Desafio {
       objetoId: json['objeto_id'] as int?,
       configuracion: (json['configuracion'] as Map?)?.cast<String, dynamic>() ?? const {},
       respuestaCorrecta: json['respuesta_correcta'] as String?,
+      // Con ?? 0 por si la respuesta viene de una versión de la API anterior a
+      // ADM13, que no manda el conteo: así el listado se muestra igual.
+      pistas: (json['pistas'] as int?) ?? 0,
     );
   }
 }

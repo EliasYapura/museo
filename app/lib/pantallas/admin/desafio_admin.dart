@@ -6,6 +6,7 @@ import '../../modelos/desafio.dart';
 import '../../sesion/sesion.dart';
 import '../../widgets/formulario.dart';
 import 'formulario_desafio.dart';
+import 'pistas_desafio.dart';
 
 /// Crear un desafío para una misión o editar uno existente.
 ///
@@ -64,6 +65,20 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
     // A diferencia de las misiones, la API de desafíos no avisa si hubo
     // cambios de verdad, así que el aviso no puede distinguirlo.
     return 'Cambios guardados.';
+  }
+
+  /// Abre las pistas del desafío (ADM13).
+  Future<void> _abrirPistas() async {
+    final huboCambios = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PantallaPistasDesafio(
+          desafioId: widget.desafio!.id,
+          enunciado: widget.desafio!.enunciado,
+        ),
+      ),
+    );
+    // Cambiar las pistas cambia la cuenta que muestra el listado de la misión.
+    if (huboCambios == true) _huboCambios = true;
   }
 
   /// Borra el desafío, después de confirmar, y vuelve al listado.
@@ -189,10 +204,58 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
                       alGuardar: _guardar,
                       textoBoton: _esAlta ? 'Agregar desafío' : 'Guardar cambios',
                     ),
+                    // Las pistas van en su propia pantalla, y sólo al editar:
+                    // en el alta el desafío todavía no tiene id del que
+                    // colgarlas (ADM13).
+                    if (!_esAlta) ...[
+                      const SizedBox(height: 26),
+                      const Divider(color: AppColors.borde, height: 1),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _abrirPistas,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.lightbulb_outline,
+                                size: 20,
+                                color: AppColors.acento,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Pistas',
+                                      style: AppText.sans(
+                                        size: 14,
+                                        color: AppColors.textoPrimario,
+                                        peso: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'La ayuda que puede pedir el visitante si no le sale, '
+                                      'a cambio de puntos.',
+                                      style: AppText.sans(size: 12.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: AppColors.textoInactivo),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     // Borrar va aparte del formulario y sólo al editar: en el
                     // alta no hay nada que borrar todavía.
                     if (!_esAlta) ...[
-                      const SizedBox(height: 26),
+                      const SizedBox(height: 14),
                       if (_error.isNotEmpty) ...[
                         Aviso(_error),
                         const SizedBox(height: 12),

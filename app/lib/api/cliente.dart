@@ -9,6 +9,7 @@ import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
+import '../modelos/pista.dart';
 import '../modelos/sala.dart';
 import '../sesion/sesion.dart';
 
@@ -386,6 +387,77 @@ Future<bool> borrarDesafio(String token, int id) async {
     mensaje404: 'Ese desafío ya no existe.',
   );
   return cuerpo['despublicada'] == true;
+}
+
+// --- Pistas de un desafío (ADM13) -----------------------------------------
+
+/// GET /desafios/:id/pistas — las pistas del desafío, en orden.
+///
+/// Devuelve también los puntos del desafío: la pantalla los necesita para
+/// avisar cuando la suma de las penalizaciones se los come.
+Future<({int puntos, List<Pista> pistas})> listarPistas(String token, int desafioId) async {
+  final cuerpo = await _pedirJson(
+    '/desafios/$desafioId/pistas',
+    token: token,
+    mensaje404: 'Ese desafío ya no existe.',
+  );
+  try {
+    return (
+      puntos: (cuerpo['desafio'] as Map<String, dynamic>)['puntos'] as int,
+      pistas: (cuerpo['pistas'] as List)
+          .map((json) => Pista.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// POST /desafios/:id/pistas — agrega una pista al final del desafío.
+///
+/// El orden lo calcula la API: la pista nueva se entrega última.
+Future<Pista> crearPista(String token, int desafioId, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/desafios/$desafioId/pistas',
+    token: token,
+    metodo: 'POST',
+    cuerpo: datos,
+    mensaje404: 'Ese desafío ya no existe.',
+  );
+  return _pistaDesde(cuerpo);
+}
+
+/// PUT /pistas/:id — cambia el texto y la penalización de una pista.
+Future<Pista> editarPista(String token, int id, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/pistas/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Esa pista ya no existe.',
+  );
+  return _pistaDesde(cuerpo);
+}
+
+Pista _pistaDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return Pista.desdeJson(cuerpo['pista'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// DELETE /pistas/:id — borra una pista.
+///
+/// El hueco que deja en el orden no se rellena: las que siguen se entregan
+/// igual, una después de la otra.
+Future<void> borrarPista(String token, int id) async {
+  await _pedirJson(
+    '/pistas/$id',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa pista ya no existe.',
+  );
 }
 
 /// GET /objetos — las piezas del museo, para elegir la de un desafío.

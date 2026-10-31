@@ -24,8 +24,14 @@ for (const router of [desafiosRouter, desafiosDeMisionRouter]) {
 // Columnas de un desafio. Incluye el nombre del objeto asociado, que puede no
 // tener: por eso LEFT JOIN y no JOIN, que dejaria afuera esos desafios.
 // puntos los define el administrador en cada desafio (ADM11).
+//
+// pistas es cuantas tiene cargadas (ADM13), para verlo en el listado sin abrir
+// cada desafio. Va como subconsulta y no como JOIN con GROUP BY, que obligaria
+// a agrupar por todas las demas columnas. El ::int es porque count() devuelve
+// bigint y el driver lo entrega como texto.
 const COLUMNAS = `d.id, d.mision_id, d.orden, d.tipo, d.enunciado, d.configuracion,
-                  d.respuesta_correcta, d.puntos, d.objeto_id, o.nombre AS objeto`;
+                  d.respuesta_correcta, d.puntos, d.objeto_id, o.nombre AS objeto,
+                  (SELECT count(*) FROM pistas p WHERE p.desafio_id = d.id)::int AS pistas`;
 const DESDE = 'FROM desafios d LEFT JOIN objetos o ON o.id = d.objeto_id';
 
 const NO_ENCONTRADO = { error: 'El desafío no existe' };

@@ -5,6 +5,7 @@ import { authRouter } from './routes/auth.js';
 import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
 import { misionesRouter } from './routes/misiones.js';
 import { objetosRouter } from './routes/objetos.js';
+import { pistasDeDesafioRouter, pistasRouter } from './routes/pistas.js';
 import { publicoRouter } from './routes/publico.js';
 import { salasRouter } from './routes/salas.js';
 
@@ -37,7 +38,10 @@ app.use('/publico', publicoRouter);
 // Va antes de /misiones porque es una direccion mas especifica.
 app.use('/misiones/:misionId/desafios', desafiosDeMisionRouter);
 app.use('/misiones', misionesRouter);
+// Va antes de /desafios porque es una direccion mas especifica.
+app.use('/desafios/:desafioId/pistas', pistasDeDesafioRouter);
 app.use('/desafios', desafiosRouter);
+app.use('/pistas', pistasRouter);
 app.use('/objetos', objetosRouter);
 app.use('/salas', salasRouter);
 
