@@ -10,6 +10,7 @@ import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
 import '../modelos/pista.dart';
+import '../modelos/progreso.dart';
 import '../modelos/sala.dart';
 import '../sesion/sesion.dart';
 
@@ -616,15 +617,29 @@ Future<Mision> obtenerMision(int id) async {
 /// No trae las respuestas correctas ni cómo se comparan: eso se queda en el
 /// servidor. Un 404 acá significa que el museo bajó la misión entre que se
 /// abrió el detalle y se apretó "Comenzar recorrido".
-Future<List<DesafioJugable>> obtenerDesafiosJugables(int misionId) async {
+///
+/// Con [token] —es decir, con el visitante identificado— la API devuelve
+/// además dónde había quedado, y de paso abre o retoma el progreso guardado
+/// (SIS03). Sin token el progreso viene en null y se juega sin que se guarde.
+Future<({List<DesafioJugable> desafios, ProgresoMision? progreso})> obtenerDesafiosJugables(
+  int misionId, {
+  String? token,
+}) async {
   final cuerpo = await _pedirJson(
     '/publico/misiones/$misionId/desafios',
+    token: token,
     mensaje404: 'Esta misión ya no está disponible.',
   );
   try {
-    return (cuerpo['desafios'] as List)
-        .map((json) => DesafioJugable.desdeJson(json as Map<String, dynamic>))
-        .toList();
+    final progreso = cuerpo['progreso'];
+    return (
+      desafios: (cuerpo['desafios'] as List)
+          .map((json) => DesafioJugable.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+      progreso: progreso == null
+          ? null
+          : ProgresoMision.desdeJson(progreso as Map<String, dynamic>),
+    );
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
@@ -643,9 +658,11 @@ Future<ResultadoEscaneo> escanearCodigo(
   int desafioId,
   String codigo, {
   int pistasUsadas = 0,
+  String? token,
 }) async {
   final cuerpo = await _pedirJson(
     '/publico/desafios/$desafioId/escaneo',
+    token: token,
     metodo: 'POST',
     cuerpo: {'codigo': codigo, 'pistas_usadas': pistasUsadas},
     mensaje404: 'Este desafío ya no está disponible.',
@@ -669,9 +686,11 @@ Future<({bool correcto, int puntos})> responderDesafio(
   int desafioId,
   String respuesta, {
   int pistasUsadas = 0,
+  String? token,
 }) async {
   final cuerpo = await _pedirJson(
     '/publico/desafios/$desafioId/respuesta',
+    token: token,
     metodo: 'POST',
     cuerpo: {'respuesta': respuesta, 'pistas_usadas': pistasUsadas},
     mensaje404: 'Este desafío ya no está disponible.',
@@ -693,9 +712,14 @@ Future<({bool correcto, int puntos})> responderDesafio(
 /// piden de a una, cuando el visitante decide pagar lo que cuestan.
 ///
 /// Un 404 es que ya no quedan, no una falla.
-Future<({String texto, int penalizacion})> pedirPista(int desafioId, int usadas) async {
+Future<({String texto, int penalizacion})> pedirPista(
+  int desafioId,
+  int usadas, {
+  String? token,
+}) async {
   final cuerpo = await _pedirJson(
     '/publico/desafios/$desafioId/pista?usadas=$usadas',
+    token: token,
     mensaje404: 'No hay más pistas para este desafío.',
   );
   try {
@@ -715,9 +739,10 @@ Future<({String texto, int penalizacion})> pedirPista(int desafioId, int usadas)
 /// Es sólo para la bitácora del museo: la app ya sabe que terminó y muestra el
 /// resultado sin esperar esta respuesta. Quien la llama la deja corriendo y no
 /// la espera, así una red lenta no demora la pantalla de resultado.
-Future<void> avisarMisionCompletada(int misionId, int puntos) async {
+Future<void> avisarMisionCompletada(int misionId, int puntos, {String? token}) async {
   await _pedirJson(
     '/publico/misiones/$misionId/completada',
+    token: token,
     metodo: 'POST',
     cuerpo: {'puntos': puntos},
   );

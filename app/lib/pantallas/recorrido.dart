@@ -6,14 +6,19 @@ import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
 import '../modelos/mision.dart';
+import '../modelos/progreso.dart';
+import '../sesion/sesion.dart';
 import 'escaneo.dart';
 import 'resultado.dart';
 
 /// El recorrido de una misión: muestra el desafío que toca resolver (VIS04).
 ///
 /// Los desafíos se piden una sola vez al entrar y quedan en memoria mientras
-/// dura el recorrido. Guardar el avance para poder retomarlo es SIS02 y SIS03,
-/// del Sprint 4: por ahora, salir del recorrido lo descarta.
+/// dura el recorrido.
+///
+/// El avance se guarda sólo si el visitante tiene cuenta (SIS03): entonces
+/// salir del recorrido no lo pierde y al volver se retoma donde iba. Sin
+/// cuenta se recorre igual, pero salir lo descarta.
 class PantallaRecorrido extends StatefulWidget {
   final Mision mision;
 
@@ -24,7 +29,12 @@ class PantallaRecorrido extends StatefulWidget {
 }
 
 class _PantallaRecorridoState extends State<PantallaRecorrido> {
-  late Future<List<DesafioJugable>> _desafios;
+  Future<List<DesafioJugable>>? _desafios;
+
+  /// La sesión del visitante, si tiene cuenta. Con ella el servidor guarda el
+  /// avance y lo devuelve al volver a entrar (SIS03); sin ella se recorre
+  /// igual, sin que quede nada guardado.
+  String? _token;
 
   /// Qué desafío de la lista se está jugando.
   int _indice = 0;
@@ -54,9 +64,13 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   /// Vive en memoria, como el resto del recorrido: guardarlo es SIS03.
   int _puntos = 0;
 
+  // En didChangeDependencies y no en initState: leer la sesión del árbol no
+  // está permitido en initState, y el pedido necesita el token.
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_desafios != null) return;
+    _token = ProveedorSesion.de(context).token;
     _desafios = _pedir();
   }
 
@@ -64,9 +78,57 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   // inmediato se reporte como excepción sin atender antes de que
   // FutureBuilder alcance a escuchar.
   Future<List<DesafioJugable>> _pedir() {
-    final pedido = obtenerDesafiosJugables(widget.mision.id);
+    final pedido = obtenerDesafiosJugables(widget.mision.id, token: _token).then((respuesta) {
+      if (!mounted) return respuesta.desafios;
+
+      // Dentro de setState, y no sueltos: el puntaje se dibuja en el
+      // encabezado, que está FUERA del FutureBuilder. Que el pedido termine
+      // redibuja lo de adentro —el desafío que toca— pero no el encabezado,
+      // así que sin esto el recorrido retoma en el desafío correcto y arriba
+      // sigue diciendo 0 pts.
+      var retomado = false;
+      setState(() {
+        retomado = _aplicarProgreso(respuesta.progreso, respuesta.desafios);
+      });
+
+      if (retomado) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _avisar('Retomaste donde habías quedado.',
+                duracion: const Duration(seconds: 3));
+          }
+        });
+      }
+      return respuesta.desafios;
+    });
     pedido.ignore();
     return pedido;
+  }
+
+  /// Deja la pantalla donde el visitante había quedado. Devuelve si había algo
+  /// que retomar (SIS03).
+  bool _aplicarProgreso(ProgresoMision? progreso, List<DesafioJugable> desafios) {
+    if (progreso == null || !progreso.hayAvance) return false;
+
+    final resueltos = progreso.resueltos.toSet();
+    // Por id y no por posición: el administrador pudo agregar o borrar
+    // desafíos desde la última vez, y una posición apuntaría a otro.
+    final pendiente = desafios.indexWhere((desafio) => !resueltos.contains(desafio.id));
+
+    _puntos = progreso.puntos;
+    if (pendiente == -1) {
+      // Los resolvió todos y no llegó a cerrar la misión: queda parado en el
+      // último, con el botón de terminar encendido.
+      _indice = desafios.length - 1;
+      _resuelto = true;
+      _pistas = const [];
+    } else {
+      _indice = pendiente;
+      // Las pistas que ya pagó en ese desafío: el servidor las devuelve para
+      // no cobrárselas de nuevo.
+      _pistas = progreso.pistas;
+    }
+    return true;
   }
 
   Future<void> _reintentar() async {
@@ -138,7 +200,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
 
     setState(() => _pidiendoPista = true);
     try {
-      final pista = await pedirPista(desafio.id, _pistas.length);
+      final pista = await pedirPista(desafio.id, _pistas.length, token: _token);
       if (!mounted) return;
       setState(() => _pistas = [..._pistas, pista.texto]);
     } on ErrorApi catch (error) {
@@ -186,7 +248,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
     // Deja constancia en la bitácora del museo (SIS02). No se espera a propósito:
     // si la red está lenta o falla, el visitante igual tiene que ver cómo le fue.
     // ignore() descarta también el error, que acá no hay nada que hacer con él.
-    avisarMisionCompletada(widget.mision.id, _puntos).ignore();
+    avisarMisionCompletada(widget.mision.id, _puntos, token: _token).ignore();
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -208,7 +270,11 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
   Future<void> _escanear(DesafioJugable desafio, int cuantos) async {
     final resultado = await Navigator.of(context).push<ResultadoEscaneo>(
       MaterialPageRoute(
-        builder: (_) => PantallaEscaneo(desafio: desafio, pistasUsadas: _pistas.length),
+        builder: (_) => PantallaEscaneo(
+          desafio: desafio,
+          pistasUsadas: _pistas.length,
+          token: _token,
+        ),
       ),
     );
     // Null es haber salido de la cámara sin acertar: el desafío sigue igual.
@@ -255,7 +321,10 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
               child: FutureBuilder<List<DesafioJugable>>(
                 future: _desafios,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  // != done y no == waiting: con el pedido todavía sin
+                  // arrancar el estado es none, y ahí tampoco hay nada que
+                  // dibujar.
+                  if (snapshot.connectionState != ConnectionState.done) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppColors.acento),
                     );
@@ -279,6 +348,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
                     total: desafios.length,
                     pistas: _pistas,
                     pidiendoPista: _pidiendoPista,
+                    token: _token,
                     // Sin pistas por delante, o con el desafío ya resuelto, no
                     // hay nada que pedir y el botón no aparece.
                     alPedirPista:
@@ -324,6 +394,9 @@ class _Desafio extends StatelessWidget {
   /// Null cuando no quedan pistas por pedir o el desafío ya está resuelto.
   final VoidCallback? alPedirPista;
 
+  /// La sesión del visitante, si tiene cuenta (SIS03).
+  final String? token;
+
   final VoidCallback alEscanear;
 
   /// Avisa que el desafío quedó resuelto, con los puntos que sumó.
@@ -340,6 +413,7 @@ class _Desafio extends StatelessWidget {
     required this.pistas,
     required this.pidiendoPista,
     required this.alPedirPista,
+    required this.token,
     required this.alEscanear,
     required this.alAcertar,
     required this.alTerminar,
@@ -437,6 +511,7 @@ class _Desafio extends StatelessWidget {
             key: ValueKey(desafio.id),
             desafio: desafio,
             pistasUsadas: pistas.length,
+            token: token,
             alAcertar: alAcertar,
           )
         else
@@ -595,8 +670,13 @@ class _Pregunta extends StatefulWidget {
   final DesafioJugable desafio;
 
   /// Cuántas pistas pidió el visitante en este desafío. Viaja con la respuesta
-  /// para que el servidor descuente lo que cuestan (VIS07).
+  /// para que el servidor descuente lo que cuestan (VIS07). Con sesión
+  /// iniciada el servidor usa las suyas y este número no influye (SIS03).
   final int pistasUsadas;
+
+  /// La sesión del visitante, si tiene cuenta, para que la respuesta quede
+  /// guardada en su progreso (SIS03).
+  final String? token;
 
   /// Se llama cuando la respuesta estuvo bien, con los puntos que sumó. El
   /// recorrido avanza y este widget se va junto con el desafío.
@@ -606,6 +686,7 @@ class _Pregunta extends StatefulWidget {
     super.key,
     required this.desafio,
     required this.pistasUsadas,
+    required this.token,
     required this.alAcertar,
   });
 
@@ -639,6 +720,7 @@ class _PreguntaState extends State<_Pregunta> {
         widget.desafio.id,
         _respuesta,
         pistasUsadas: widget.pistasUsadas,
+        token: widget.token,
       );
       if (!mounted) return;
       if (resultado.correcto) {

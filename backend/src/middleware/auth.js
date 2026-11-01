@@ -34,3 +34,26 @@ export function requerirRol(...roles) {
     next();
   };
 }
+
+// Igual que verificarToken pero sin exigirlo: si viene un token valido deja
+// los datos en req.usuario, y si no viene sigue sin usuario.
+//
+// Lo usan las rutas publicas, que tienen que servir a los dos casos: el
+// visitante con cuenta, al que se le guarda el progreso (SIS03), y el que
+// recorre sin cuenta, que es como funciono el museo hasta ahora.
+//
+// Un token vencido tampoco corta: seria dejar a alguien parado en medio de una
+// sala sin poder seguir la mision. Pierde el guardado, no la visita.
+export function tokenOpcional(req, res, next) {
+  const header = req.headers.authorization || '';
+  const [esquema, token] = header.split(' ');
+  if (esquema !== 'Bearer' || !token) return next();
+
+  try {
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
+    req.usuario = { id: Number(payload.sub), rol: payload.rol };
+  } catch {
+    // Token vencido o alterado: se sigue como anonimo, a proposito.
+  }
+  next();
+}

@@ -19,12 +19,20 @@ class PantallaEscaneo extends StatefulWidget {
 
   /// Cuántas pistas pidió el visitante en este desafío. Se le pasa al servidor
   /// junto con el código: es él quien descuenta lo que cuestan (VIS07).
+  ///
+  /// Con sesión iniciada el servidor usa las que tiene guardadas y este número
+  /// no influye (SIS03); sigue sirviendo para quien recorre sin cuenta.
   final int pistasUsadas;
+
+  /// La sesión del visitante, si tiene cuenta, para que el escaneo quede
+  /// guardado en su progreso (SIS03).
+  final String? token;
 
   const PantallaEscaneo({
     super.key,
     required this.desafio,
     this.pistasUsadas = 0,
+    this.token,
   });
 
   @override
@@ -91,6 +99,7 @@ class _PantallaEscaneoState extends State<PantallaEscaneo> {
         widget.desafio.id,
         codigo,
         pistasUsadas: widget.pistasUsadas,
+        token: widget.token,
       );
       if (!mounted) return;
 

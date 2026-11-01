@@ -70,8 +70,21 @@ class ControlSesion extends ChangeNotifier {
         _usuario = await obtenerPerfil(guardado);
         _token = guardado;
       }
+    } on ErrorApi catch (error) {
+      // El token sólo se tira cuando el servidor dice que no vale. Si lo que
+      // falló fue la conexión, se conserva: esta vez se recorre sin cuenta y
+      // al abrir la app con red la sesión vuelve sola.
+      //
+      // Borrarlo ante cualquier falla, como se hacía antes, significaba que un
+      // rato sin señal cerraba la sesión para siempre. Mientras la cuenta era
+      // sólo para administrar no se notaba; desde que el avance se guarda
+      // (SIS03), eso le haría perder al visitante el acceso a su progreso por
+      // haber abierto la app en una sala sin señal.
+      if (error.sesionVencida) await _borrarToken();
+      _token = null;
+      _usuario = null;
     } catch (_) {
-      await _borrarToken();
+      // Falló el almacén, no el servidor: no se toca lo guardado.
       _token = null;
       _usuario = null;
     } finally {

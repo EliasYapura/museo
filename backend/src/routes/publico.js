@@ -1,6 +1,16 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { EVENTOS, registrar } from '../eventos.js';
+import { tokenOpcional } from '../middleware/auth.js';
+import {
+  abrirProgreso,
+  completarProgreso,
+  estadoDelProgreso,
+  guardarIntento,
+  guardarPistaUsada,
+  pistasYaPagadas,
+  progresoDelDesafio,
+} from '../progreso.js';
 import { esIdValido } from '../validaciones/id.js';
 
 // Rutas que consume la app del visitante (VIS01, VIS03). No piden token: el
@@ -11,6 +21,11 @@ import { esIdValido } from '../validaciones/id.js';
 // un cambio futuro en ese router se lleve puesta la seguridad, o al reves,
 // que alguien agregue una ruta de administracion y quede abierta.
 export const publicoRouter = Router();
+
+// Ninguna ruta de aca exige token, pero si viene uno valido se aprovecha: es
+// lo que distingue al visitante con cuenta, al que se le guarda el progreso
+// (SIS03), del que recorre sin cuenta, que juega igual sin que se guarde nada.
+publicoRouter.use(tokenOpcional);
 
 // Lo que la app necesita de una mision. Nada de administracion: ni las
 // respuestas correctas, ni quien la creo, ni los desafios en si.
@@ -130,21 +145,53 @@ publicoRouter.get('/misiones/:id/desafios', async (req, res) => {
   // nada que resolver es peor que decir que no esta disponible.
   if (rows.length === 0) return res.status(404).json(NO_DISPONIBLE);
 
-  // Este pedido es el recorrido empezando: la app lo hace cuando el visitante
-  // toca "Empezar la misión" (SIS02).
-  //
-  // El id de la misión va en datos porque la tabla no tiene columna propia
-  // para ella: tiene la del progreso, que recién existe con SIS03.
-  //
-  // Si la app reintenta tras un error de red, la misión queda iniciada dos
-  // veces. Es ruido tolerable en una bitácora; cuando haya progreso guardado,
-  // un reintento va a retomar el que ya estaba en vez de empezar otro.
-  registrar({
-    tipo: EVENTOS.MISION_INICIADA,
-    datos: { mision_id: Number(req.params.id), desafios: rows.length },
-  });
+  // Sin cuenta no hay donde guardar nada: se juega como siempre y la
+  // respuesta no lleva progreso.
+  if (!req.usuario) {
+    // El id de la misión va en datos porque la tabla de eventos no tiene
+    // columna propia para ella: tiene la del progreso, que estas sesiones
+    // anónimas no crean.
+    //
+    // Si la app reintenta tras un error de red, la misión queda iniciada dos
+    // veces. Es ruido tolerable en una bitácora, y al visitante con cuenta no
+    // le pasa: ahí el reintento retoma el progreso que ya estaba.
+    registrar({
+      tipo: EVENTOS.MISION_INICIADA,
+      datos: { mision_id: Number(req.params.id), desafios: rows.length },
+    });
+    return res.json({ desafios: rows, progreso: null });
+  }
 
-  return res.json({ desafios: rows });
+  // Con cuenta: se abre el progreso, o se retoma el que habia quedado.
+  const { id: progresoId, nuevo } = await abrirProgreso(req.usuario.id, req.params.id);
+  const estado = await estadoDelProgreso(progresoId);
+
+  // Donde retoma: el primer desafio que todavia no resolvio. Se busca por id y
+  // no por posicion, porque el administrador pudo haber agregado o borrado
+  // desafios desde la ultima vez y una posicion apuntaria a otra cosa.
+  const resueltos = new Set(estado.resueltos);
+  const actual = rows.find((desafio) => !resueltos.has(Number(desafio.id)));
+
+  // Retomar no es empezar: solo se registra como mision iniciada la primera vez.
+  if (nuevo) {
+    registrar({
+      tipo: EVENTOS.MISION_INICIADA,
+      usuarioId: req.usuario.id,
+      progresoMisionId: progresoId,
+      datos: { mision_id: Number(req.params.id), desafios: rows.length },
+    });
+  }
+
+  return res.json({
+    desafios: rows,
+    progreso: {
+      resueltos: estado.resueltos,
+      puntos: estado.puntos,
+      // Las pistas que ya pago en el desafio donde retoma: son suyas, y
+      // cobrarselas otra vez por haber cerrado la app seria cobrar dos veces.
+      pistas: actual ? await pistasYaPagadas(progresoId, actual.id) : [],
+    },
+  });
 });
 
 // Tipos que se resuelven llegando a la pieza: no tienen nada que contestar,
@@ -225,6 +272,12 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
     return res.status(409).json({ error: 'Este desafío no se resuelve escaneando' });
   }
 
+  // Con cuenta, las pistas usadas salen del progreso guardado y no de lo que
+  // diga la app (SIS03). Sin cuenta no hay progreso y sigue valiendo el dato
+  // del pedido, con la salvedad que ya estaba en VIS07.
+  const progreso = req.usuario ? await progresoDelDesafio(req.usuario.id, req.params.id) : null;
+  const usadas = progreso ? progreso.pistasUsadas : pistasUsadasDe(req.body);
+
   // Los codigos estan enteramente en mayusculas, tanto los que genera la API
   // (OBJ- mas ocho simbolos de un alfabeto en mayusculas) como los cargados a
   // mano en la base (MLP-OBJ-005). Por eso subir a mayusculas no puede hacer
@@ -232,11 +285,22 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   // eso. Lo que si arregla es un lector que devuelva el texto en minusculas.
   const escaneado = codigo.trim().toUpperCase();
   if (escaneado !== desafio.codigo.toUpperCase()) {
+    // Escanear la pieza equivocada es un intento fallido de dar con ella.
+    if (progreso) {
+      await guardarIntento({
+        progresoId: progreso.id,
+        desafioId: Number(req.params.id),
+        acerto: false,
+        puntos: 0,
+      });
+    }
     // Escanear la pieza equivocada tambien es una interaccion, y saber cuales
     // se confunden le sirve al museo tanto como saber cuales se aciertan.
     registrar({
       tipo: EVENTOS.OBJETO_ESCANEADO,
       desafioId: Number(req.params.id),
+      usuarioId: req.usuario?.id ?? null,
+      progresoMisionId: progreso?.id ?? null,
       datos: { correcto: false },
     });
     // No se dice que pieza escaneo. En la busqueda guiada, nombrarla seria
@@ -248,14 +312,26 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   // El descuento por pistas solo hace falta si este escaneo ya resuelve el
   // desafio. Si sigue con una pregunta, los puntos se otorgan al contestarla
   // y el descuento se aplica alla.
-  const descuento = sinPregunta
-    ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
-    : 0;
+  const descuento = sinPregunta ? await descuentoPorPistas(req.params.id, usadas) : 0;
   const puntos = sinPregunta ? conDescuento(desafio.puntos, descuento) : 0;
+
+  // Solo cuenta como intento si este escaneo era la forma de resolverlo. En un
+  // desafio que ademas pregunta algo, dar con la pieza es avanzar, no
+  // intentar resolverlo: eso se intenta al contestar.
+  if (progreso && sinPregunta) {
+    await guardarIntento({
+      progresoId: progreso.id,
+      desafioId: Number(req.params.id),
+      acerto: true,
+      puntos,
+    });
+  }
 
   registrar({
     tipo: EVENTOS.OBJETO_ESCANEADO,
     desafioId: Number(req.params.id),
+    usuarioId: req.usuario?.id ?? null,
+    progresoMisionId: progreso?.id ?? null,
     datos: { correcto: true, resuelto: sinPregunta, puntos },
   });
 
@@ -334,10 +410,22 @@ publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
 
   // Equivocarse no descuenta nada, asi que el descuento solo se consulta
   // cuando hay puntos que dar.
-  const descuento = acerto
-    ? await descuentoPorPistas(req.params.id, pistasUsadasDe(req.body))
-    : 0;
+  // Con cuenta, las pistas usadas las pone el servidor (SIS03).
+  const progreso = req.usuario ? await progresoDelDesafio(req.usuario.id, req.params.id) : null;
+  const usadas = progreso ? progreso.pistasUsadas : pistasUsadasDe(req.body);
+
+  const descuento = acerto ? await descuentoPorPistas(req.params.id, usadas) : 0;
   const puntos = acerto ? conDescuento(desafio.puntos, descuento) : 0;
+
+  // Contestar siempre es un intento, se acierte o no.
+  if (progreso) {
+    await guardarIntento({
+      progresoId: progreso.id,
+      desafioId: Number(req.params.id),
+      acerto,
+      puntos,
+    });
+  }
 
   // Que desafio se falla y cuanto se falla es lo que despues deja ver si un
   // enunciado esta mal redactado. El texto de lo que escribio el visitante no
@@ -345,6 +433,8 @@ publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
   registrar({
     tipo: acerto ? EVENTOS.RESPUESTA_CORRECTA : EVENTOS.RESPUESTA_INCORRECTA,
     desafioId: Number(req.params.id),
+    usuarioId: req.usuario?.id ?? null,
+    progresoMisionId: progreso?.id ?? null,
     datos: acerto ? { puntos, descuento } : {},
   });
 
@@ -367,6 +457,12 @@ publicoRouter.get('/desafios/:id/pista', async (req, res) => {
     return res.status(400).json({ error: 'No se entendió qué pista pedir' });
   }
 
+  // Con cuenta, cual toca lo decide el servidor y no el parametro: lleva la
+  // cuenta de las que ya entrego (SIS03). Las que el visitante ya pago las
+  // recupera al retomar la mision, no volviendo a pedirlas por aca.
+  const progreso = req.usuario ? await progresoDelDesafio(req.usuario.id, req.params.id) : null;
+  const desde = progreso ? progreso.pistasUsadas : usadas;
+
   // El JOIN con misiones, igual que en el escaneo: el id de un desafio suelto
   // no tiene que dejar jugar una mision que el museo despublico o archivo.
   const { rows } = await pool.query(
@@ -377,17 +473,23 @@ publicoRouter.get('/desafios/:id/pista', async (req, res) => {
       WHERE d.id = $1 AND m.activa = TRUE AND m.archivada = FALSE
       ORDER BY p.orden, p.id
       OFFSET $2 LIMIT 1`,
-    [req.params.id, usadas]
+    [req.params.id, desde]
   );
   // Sin fila puede ser que el desafio no este disponible, que no tenga pistas
   // o que ya se hayan dado todas. Para el visitante son lo mismo: no hay mas
   // ayuda de la que ya tiene.
   if (!rows[0]) return res.status(404).json({ error: 'No hay más pistas para este desafío' });
 
+  if (progreso) {
+    await guardarPistaUsada(progreso.id, Number(req.params.id), desde + 1);
+  }
+
   registrar({
     tipo: EVENTOS.PISTA_USADA,
     desafioId: Number(req.params.id),
-    datos: { orden: usadas + 1, penalizacion: rows[0].penalizacion },
+    usuarioId: req.usuario?.id ?? null,
+    progresoMisionId: progreso?.id ?? null,
+    datos: { orden: desde + 1, penalizacion: rows[0].penalizacion },
   });
 
   return res.json({ pista: rows[0] });
@@ -428,8 +530,16 @@ publicoRouter.post('/misiones/:id/completada', async (req, res) => {
   );
   if (!mision.rows[0]) return res.status(404).json(NO_DISPONIBLE);
 
+  // Con cuenta queda cerrada de verdad: el progreso pasa a completada y deja
+  // de estar en curso, asi que volver a jugarla empieza una vuelta nueva.
+  const progresoId = req.usuario
+    ? await completarProgreso(req.usuario.id, req.params.id)
+    : null;
+
   registrar({
     tipo: EVENTOS.MISION_COMPLETADA,
+    usuarioId: req.usuario?.id ?? null,
+    progresoMisionId: progresoId,
     datos: { mision_id: Number(req.params.id), puntos: puntos ?? null },
   });
 
