@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
+import '../modelos/insignia.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
@@ -188,15 +189,19 @@ Future<Usuario> obtenerPerfil(String token) async {
 
 /// Cuántas misiones y objetos hay cargados, para la portada de administración.
 /// Son las mismas rutas del panel, así que exigen token de administrador.
-Future<({int misiones, int publicadas, int objetos})> obtenerResumen(String token) async {
+Future<({int misiones, int publicadas, int objetos, int insignias})> obtenerResumen(
+  String token,
+) async {
   final misiones = await _pedirJson('/misiones', token: token);
   final objetos = await _pedirJson('/objetos', token: token);
+  final insignias = await _pedirJson('/insignias', token: token);
   try {
     final lista = misiones['misiones'] as List;
     return (
       misiones: lista.length,
       publicadas: lista.where((m) => (m as Map)['activa'] == true).length,
       objetos: (objetos['objetos'] as List).length,
+      insignias: (insignias['insignias'] as List).length,
     );
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
@@ -761,4 +766,76 @@ Future<void> crearCuentaVisitante(String nombre, String email, String password) 
     metodo: 'POST',
     cuerpo: {'nombre': nombre, 'email': email, 'password': password},
   );
+}
+
+// --- Administración de insignias (ADM19) ----------------------------------
+
+/// GET /insignias — todas las insignias, activas y desactivadas.
+Future<List<Insignia>> listarInsignias(String token) async {
+  final cuerpo = await _pedirJson('/insignias', token: token);
+  try {
+    return (cuerpo['insignias'] as List)
+        .map((json) => Insignia.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// POST /insignias — crea una insignia.
+///
+/// Nace sin condición de obtención, o sea que todavía no la puede ganar nadie.
+/// La regla se carga aparte (ADM20).
+Future<Insignia> crearInsignia(String token, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson('/insignias', token: token, metodo: 'POST', cuerpo: datos);
+  return _insigniaDesde(cuerpo);
+}
+
+/// PUT /insignias/:id — cambia nombre, descripción e ícono.
+Future<Insignia> editarInsignia(String token, int id, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return _insigniaDesde(cuerpo);
+}
+
+/// PATCH /insignias/:id/activa — la habilita o la deshabilita.
+///
+/// Va por su propia ruta y no con el formulario para que guardar un cambio de
+/// nombre no deje de otorgarla sin querer.
+Future<Insignia> cambiarActivaInsignia(String token, int id, bool activa) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id/activa',
+    token: token,
+    metodo: 'PATCH',
+    cuerpo: {'activa': activa},
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return _insigniaDesde(cuerpo);
+}
+
+Insignia _insigniaDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return Insignia.desdeJson(cuerpo['insignia'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// DELETE /insignias/:id — la borra.
+///
+/// Devuelve a cuántos visitantes se la quitó: la base borra en cascada, así
+/// que borrarla también la saca de quienes la habían ganado.
+Future<int> borrarInsignia(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return (cuerpo['la_tenian'] as int?) ?? 0;
 }

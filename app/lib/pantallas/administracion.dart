@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
+import 'admin/insignias_admin.dart';
 import 'admin/misiones_admin.dart';
 import 'admin/objetos_admin.dart';
 
@@ -18,7 +19,7 @@ class PantallaAdministracion extends StatefulWidget {
 }
 
 class _PantallaAdministracionState extends State<PantallaAdministracion> {
-  Future<({int misiones, int publicadas, int objetos})>? _resumen;
+  Future<({int misiones, int publicadas, int objetos, int insignias})>? _resumen;
 
   @override
   void didChangeDependencies() {
@@ -26,7 +27,7 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
     _resumen ??= _pedir();
   }
 
-  Future<({int misiones, int publicadas, int objetos})> _pedir() {
+  Future<({int misiones, int publicadas, int objetos, int insignias})> _pedir() {
     final pedido = obtenerResumen(ProveedorSesion.de(context).token!);
     pedido.ignore();
     return pedido;
@@ -81,7 +82,7 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
             ),
             const SizedBox(height: 20),
 
-            FutureBuilder<({int misiones, int publicadas, int objetos})>(
+            FutureBuilder<({int misiones, int publicadas, int objetos, int insignias})>(
               future: _resumen,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -157,6 +158,18 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
                       alTocar: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const PantallaObjetosAdmin()),
+                        );
+                        await _recargar();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _Tarjeta(
+                      numero: '${datos.insignias}',
+                      titulo: datos.insignias == 1 ? 'insignia creada' : 'insignias creadas',
+                      detalle: 'logros que puede ganar el visitante',
+                      alTocar: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PantallaInsigniasAdmin()),
                         );
                         await _recargar();
                       },

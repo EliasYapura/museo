@@ -3,6 +3,7 @@ import express from 'express';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
+import { insigniasRouter } from './routes/insignias.js';
 import { misionesRouter } from './routes/misiones.js';
 import { objetosRouter } from './routes/objetos.js';
 import { pistasDeDesafioRouter, pistasRouter } from './routes/pistas.js';
@@ -43,6 +44,7 @@ app.use('/desafios/:desafioId/pistas', pistasDeDesafioRouter);
 app.use('/desafios', desafiosRouter);
 app.use('/pistas', pistasRouter);
 app.use('/objetos', objetosRouter);
+app.use('/insignias', insigniasRouter);
 app.use('/salas', salasRouter);
 
 // Cualquier ruta que no coincidio con las anteriores.
