@@ -8,11 +8,16 @@ import 'recorrido.dart';
 /// Cómo se juega una misión. Está escrito acá y no en la base porque es igual
 /// para todas: la descripción que carga el administrador cuenta de qué se
 /// trata esta misión; esto cuenta cómo funciona el juego (VIS03).
-const _instrucciones = [
-  'Recorré las salas buscando la pieza que te indica cada desafío.',
-  'Escaneá el código QR que está junto a la pieza para confirmar que la encontraste.',
-  'Respondé lo que te pregunten sobre ella y sumá puntos.',
-];
+///
+/// El paso del código QR sólo aparece si la misión tiene alguna pieza que
+/// encontrar. Una misión hecha de puras preguntas no lleva escaneo, y dejarlo
+/// fijo le prometía al visitante un paso que después nunca aparecía.
+List<String> _instruccionesDe(Mision mision) => [
+      'Recorré las salas buscando la pieza que te indica cada desafío.',
+      if (mision.requiereEscaneo)
+        'Escaneá el código QR que está junto a la pieza para confirmar que la encontraste.',
+      'Respondé lo que te pregunten sobre ella y sumá puntos.',
+    ];
 
 /// Detalle de una misión, antes de empezarla (VIS03).
 class PantallaDetalleMision extends StatefulWidget {
@@ -152,6 +157,8 @@ class _Detalle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pasos = _instruccionesDe(mision);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
       children: [
@@ -207,7 +214,7 @@ class _Detalle extends StatelessWidget {
         const SizedBox(height: 24),
         Text('Cómo funciona', style: AppText.serif(size: 17)),
         const SizedBox(height: 10),
-        for (var i = 0; i < _instrucciones.length; i++)
+        for (var i = 0; i < pasos.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
@@ -230,7 +237,7 @@ class _Detalle extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(_instrucciones[i], style: AppText.sans(size: 14))),
+                Expanded(child: Text(pasos[i], style: AppText.sans(size: 14))),
               ],
             ),
           ),

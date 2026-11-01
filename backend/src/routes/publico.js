@@ -58,6 +58,15 @@ const SALAS = `(SELECT COALESCE(json_agg(nombre ORDER BY orden), '[]'::json)
                       JOIN salas s ON s.id = o.sala_id
                       WHERE d.mision_id = m.id) AS recorrido) AS salas`;
 
+// Si la mision lleva alguna pieza que haya que encontrar y escanear.
+//
+// Va solo en el detalle, por lo mismo que las salas: en el listado no se usa.
+// Con esto la pantalla sabe si mencionar el codigo QR al explicar como se
+// juega. Una mision hecha solo de preguntas no lo lleva, y darlo por sentado
+// le pedia al visitante un paso que nunca iba a tener que dar.
+const ESCANEO = `EXISTS (SELECT 1 FROM desafios d
+                        WHERE d.mision_id = m.id AND d.objeto_id IS NOT NULL) AS requiere_escaneo`;
+
 // Una mision despublicada o archivada no esta "rota": simplemente dejo de
 // ofrecerse. El mensaje lo dice asi porque lo lee el visitante.
 const NO_DISPONIBLE = { error: 'Esta misión ya no está disponible' };
@@ -82,7 +91,7 @@ publicoRouter.get('/misiones/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_DISPONIBLE);
 
   const { rows } = await pool.query(
-    `SELECT ${COLUMNAS}, ${SALAS}
+    `SELECT ${COLUMNAS}, ${SALAS}, ${ESCANEO}
      FROM misiones m
      WHERE m.id = $1 AND m.activa = TRUE AND m.archivada = FALSE`,
     [req.params.id]

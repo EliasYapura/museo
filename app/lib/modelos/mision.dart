@@ -38,6 +38,10 @@ class Mision {
   /// museo. Solo viene en el detalle (VIS03); en el listado llega vacía.
   final List<String> salas;
 
+  /// Si alguno de sus desafíos manda a encontrar y escanear una pieza. Solo
+  /// viene en el detalle; en el listado queda en false, donde no se usa.
+  final bool requiereEscaneo;
+
   const Mision({
     required this.id,
     required this.nombre,
@@ -49,6 +53,7 @@ class Mision {
     required this.puntos,
     required this.sala,
     this.salas = const [],
+    this.requiereEscaneo = false,
   });
 
   /// Mientras las misiones no tengan imagen, la miniatura se elige por el id:
@@ -74,8 +79,9 @@ class Mision {
       desafios: json['desafios'] as int,
       puntos: json['puntos'] as int,
       sala: json['sala'] as String?,
-      // El listado no manda salas; el detalle si.
+      // El listado no manda salas ni el escaneo; el detalle si.
       salas: ((json['salas'] as List?) ?? const []).map((s) => s as String).toList(),
+      requiereEscaneo: json['requiere_escaneo'] as bool? ?? false,
     );
   }
 }
