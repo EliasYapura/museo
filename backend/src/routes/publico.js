@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { EVENTOS, registrar } from '../eventos.js';
+import { otorgarInsignias } from '../insignias.js';
 import { tokenOpcional } from '../middleware/auth.js';
 import {
   abrirProgreso,
@@ -450,6 +451,28 @@ publicoRouter.post('/desafios/:id/respuesta', async (req, res) => {
   return res.json({ correcto: acerto, puntos });
 });
 
+// GET /publico/insignias — las insignias que se pueden ganar (VIS10).
+//
+// Con sesion, cada una dice ademas si el visitante ya la tiene y desde cuando.
+// Sin sesion se ve el catalogo igual, todas sin ganar: saber que hay para
+// conseguir es parte de querer conseguirlo.
+//
+// Se dejan afuera las que no tienen condicion cargada: son insignias que el
+// museo todavia no definio como se ganan, y mostrarlas seria prometer algo
+// que nadie puede conseguir.
+publicoRouter.get('/insignias', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT i.id, i.nombre, i.descripcion, i.icono_url, ui.obtenida_en
+       FROM insignias i
+       LEFT JOIN usuarios_insignias ui
+         ON ui.insignia_id = i.id AND ui.usuario_id = $1
+      WHERE i.activa = TRUE AND i.condicion->>'tipo' IS NOT NULL
+      ORDER BY i.nombre, i.id`,
+    [req.usuario?.id ?? null]
+  );
+  return res.json({ insignias: rows });
+});
+
 // GET /publico/desafios/:id/pista?usadas=N — la pista que sigue (VIS07).
 //
 // Se entrega de a una y a pedido. Mandarlas junto con los desafios seria
@@ -552,5 +575,11 @@ publicoRouter.post('/misiones/:id/completada', async (req, res) => {
     datos: { mision_id: Number(req.params.id), puntos: puntos ?? null },
   });
 
-  return res.status(204).end();
+  // Cerrar una mision es el momento en que se evaluan las insignias (VIS10).
+  // Sin cuenta no hay a quien otorgarselas, asi que no se evalua nada.
+  const insignias = req.usuario ? await otorgarInsignias(req.usuario.id, progresoId) : [];
+
+  // Antes respondia 204 sin cuerpo. Ahora devuelve lo que el visitante acaba
+  // de ganar, que puede ser una lista vacia.
+  return res.json({ insignias });
 });

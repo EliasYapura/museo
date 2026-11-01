@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../estilo.dart';
+import 'insignias.dart';
 import 'misiones.dart';
 import 'perfil.dart';
 
 /// Pantalla principal: la barra de abajo y lo que se muestra en cada pestaña.
 ///
-/// Misiones y Perfil funcionan. Progreso e Insignias se ven apagadas y no
-/// hacen nada todavía: Progreso es del Sprint 4 e Insignias del 5. Se dejan a
-/// la vista para que la app se lea completa, pero deshabilitadas para no
-/// prometer algo que no está.
+/// Misiones, Insignias y Perfil funcionan. Progreso sigue apagada: mostraría
+/// el avance de todas las misiones juntas, y ninguna historia del backlog la
+/// pide todavía. Se deja a la vista para que la app se lea completa, pero
+/// deshabilitada para no prometer algo que no está.
 class PantallaInicio extends StatefulWidget {
   const PantallaInicio({super.key});
 
@@ -27,7 +28,7 @@ class _PantallaInicioState extends State<PantallaInicio> {
       // a pedir cada vez que se va a Perfil y se vuelve.
       body: IndexedStack(
         index: _pestana,
-        children: const [PantallaMisiones(), PantallaPerfil()],
+        children: const [PantallaMisiones(), PantallaInsignias(), PantallaPerfil()],
       ),
       bottomNavigationBar: _BarraNavegacion(
         pestana: _pestana,
@@ -49,11 +50,13 @@ class _BarraNavegacion extends StatelessWidget {
     const items = [
       (Icons.explore_outlined, 'Misiones', true),
       (Icons.bar_chart_rounded, 'Progreso', false),
-      (Icons.hexagon_outlined, 'Insignias', false),
+      (Icons.hexagon_outlined, 'Insignias', true),
       (Icons.person_outline, 'Perfil', true),
     ];
-    // Perfil es el último ícono pero la segunda pantalla.
-    const pantallaDe = {0: 0, 3: 1};
+    // Progreso sigue apagada, así que los íconos y las pantallas no van uno a
+    // uno: Insignias es el tercer ícono pero la segunda pantalla, y Perfil el
+    // cuarto ícono pero la tercera.
+    const pantallaDe = {0: 0, 2: 1, 3: 2};
 
     return Container(
       decoration: const BoxDecoration(

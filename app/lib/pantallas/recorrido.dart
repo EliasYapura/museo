@@ -245,10 +245,16 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
 
   /// Cierra el recorrido y muestra cómo le fue (VIS11).
   void _terminar(List<DesafioJugable> desafios) {
-    // Deja constancia en la bitácora del museo (SIS02). No se espera a propósito:
-    // si la red está lenta o falla, el visitante igual tiene que ver cómo le fue.
-    // ignore() descarta también el error, que acá no hay nada que hacer con él.
-    avisarMisionCompletada(widget.mision.id, _puntos, token: _token).ignore();
+    // Cierra la misión en el servidor: queda en la bitácora (SIS02), el
+    // progreso pasa a completada (SIS03) y vuelven las insignias recién
+    // ganadas (VIS10).
+    //
+    // No se espera a propósito: el resultado aparece al instante y esa
+    // pantalla completa las insignias cuando llegan. ignore() evita que un
+    // fallo de red se reporte como excepción sin atender antes de que el
+    // FutureBuilder de allá alcance a escuchar.
+    final insignias = avisarMisionCompletada(widget.mision.id, _puntos, token: _token);
+    insignias.ignore();
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -260,6 +266,7 @@ class _PantallaRecorridoState extends State<PantallaRecorrido> {
           // y pudo quedar viejo si el administrador editó algo mientras tanto.
           puntosPosibles: desafios.fold(0, (suma, desafio) => suma + desafio.puntos),
           desafios: desafios.length,
+          insignias: insignias,
         ),
       ),
     );

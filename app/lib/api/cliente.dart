@@ -7,6 +7,7 @@ import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
 import '../modelos/insignia.dart';
+import '../modelos/insignia_visitante.dart';
 import '../modelos/mision.dart';
 import '../modelos/mision_admin.dart';
 import '../modelos/objeto.dart';
@@ -738,19 +739,48 @@ Future<({String texto, int penalizacion})> pedirPista(
   }
 }
 
-/// POST /publico/misiones/:id/completada — deja constancia de que el visitante
-/// terminó la misión (SIS02).
+/// POST /publico/misiones/:id/completada — cierra la misión.
 ///
-/// Es sólo para la bitácora del museo: la app ya sabe que terminó y muestra el
-/// resultado sin esperar esta respuesta. Quien la llama la deja corriendo y no
-/// la espera, así una red lenta no demora la pantalla de resultado.
-Future<void> avisarMisionCompletada(int misionId, int puntos, {String? token}) async {
-  await _pedirJson(
+/// Deja constancia en la bitácora (SIS02), marca el progreso como completado
+/// (SIS03) y devuelve las insignias que el visitante acaba de ganar (VIS10).
+/// Sin cuenta la lista viene vacía: no hay a quién otorgárselas.
+///
+/// La pantalla de resultado no espera esta respuesta para aparecer: muestra lo
+/// que ya sabe y completa las insignias cuando llegan.
+Future<List<InsigniaVisitante>> avisarMisionCompletada(
+  int misionId,
+  int puntos, {
+  String? token,
+}) async {
+  final cuerpo = await _pedirJson(
     '/publico/misiones/$misionId/completada',
     token: token,
     metodo: 'POST',
     cuerpo: {'puntos': puntos},
   );
+  try {
+    return ((cuerpo['insignias'] as List?) ?? const [])
+        .map((json) => InsigniaVisitante.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /publico/insignias — las insignias que se pueden ganar (VIS10).
+///
+/// Con [token] cada una dice además si el visitante ya la tiene. Sin token se
+/// ve el catálogo igual, todas sin ganar: saber qué hay para conseguir es
+/// parte de querer conseguirlo.
+Future<List<InsigniaVisitante>> obtenerInsignias({String? token}) async {
+  final cuerpo = await _pedirJson('/publico/insignias', token: token);
+  try {
+    return (cuerpo['insignias'] as List)
+        .map((json) => InsigniaVisitante.desdeJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
 }
 
 /// POST /auth/registro — crea una cuenta de visitante.
