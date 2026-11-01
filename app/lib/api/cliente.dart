@@ -839,3 +839,23 @@ Future<int> borrarInsignia(String token, int id) async {
   );
   return (cuerpo['la_tenian'] as int?) ?? 0;
 }
+
+/// PUT /insignias/:id/condicion — define cómo se gana la insignia (ADM20).
+///
+/// Va por su propia ruta y no con el formulario para que guardar un cambio de
+/// nombre no altere sin querer quién puede ganarla. Sin `tipo`, la condición
+/// queda vacía y la insignia vuelve a no poder ganarse.
+Future<Insignia> guardarCondicionInsignia(
+  String token,
+  int id,
+  Map<String, dynamic> condicion,
+) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id/condicion',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: condicion,
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return _insigniaDesde(cuerpo);
+}

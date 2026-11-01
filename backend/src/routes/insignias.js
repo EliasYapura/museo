@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
 import { esIdValido } from '../validaciones/id.js';
+import { validarCondicion } from '../validaciones/condicion.js';
 import { validarInsignia } from '../validaciones/insignia.js';
 
 // Insignias del museo (ADM19).
@@ -109,6 +110,33 @@ insigniasRouter.put('/:id', async (req, res) => {
     if (responderSiEsErrorDeDatos(err, res)) return;
     throw err;
   }
+});
+
+// PUT /insignias/:id/condicion — define como se gana la insignia (ADM20).
+//
+// En su propia ruta por lo mismo que "activa": guardar un cambio de nombre no
+// tiene que alterar quien puede ganarla.
+//
+// Sin tipo la condicion queda vacia y la insignia vuelve a no poder ganarse.
+// Eso no es lo mismo que desactivarla: sin condicion es "todavia no decidi
+// como se gana", desactivada es "ya lo decidi, pero no la quiero otorgar".
+insigniasRouter.put('/:id/condicion', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  const { valor, errores } = await validarCondicion(req.body ?? {});
+  if (Object.keys(errores).length > 0) {
+    return res.status(400).json({ error: 'Datos inválidos', errores });
+  }
+
+  const { rows } = await pool.query(
+    `WITH cambiada AS (
+       UPDATE insignias SET condicion = $2::jsonb WHERE id = $1 RETURNING *
+     )
+     SELECT ${COLUMNAS} FROM cambiada i`,
+    [req.params.id, JSON.stringify(valor)]
+  );
+  if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
+  return res.json({ insignia: rows[0] });
 });
 
 // PATCH /insignias/:id/activa — habilita o deshabilita la insignia.

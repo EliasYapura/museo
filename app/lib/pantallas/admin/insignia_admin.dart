@@ -5,6 +5,7 @@ import '../../estilo.dart';
 import '../../modelos/insignia.dart';
 import '../../sesion/sesion.dart';
 import '../../widgets/formulario.dart';
+import 'condicion_insignia.dart';
 import 'formulario_insignia.dart';
 
 /// Crear una insignia o editar una existente (ADM19).
@@ -56,6 +57,17 @@ class _PantallaInsigniaAdminState extends State<PantallaInsigniaAdmin> {
     _huboCambios = true;
     if (mounted) setState(() => _insignia = guardada);
     return 'Cambios guardados.';
+  }
+
+  /// Abre la pantalla donde se define cómo se gana (ADM20).
+  Future<void> _abrirCondicion() async {
+    final actualizada = await Navigator.of(context).push<Insignia>(
+      MaterialPageRoute(builder: (_) => PantallaCondicionInsignia(insignia: _insignia!)),
+    );
+    // Null es haber salido sin guardar: la condición sigue como estaba.
+    if (actualizada == null || !mounted) return;
+    _huboCambios = true;
+    setState(() => _insignia = actualizada);
   }
 
   /// Deja de otorgarla, o la vuelve a otorgar. No le quita nada a nadie.
@@ -223,24 +235,64 @@ class _PantallaInsigniaAdminState extends State<PantallaInsigniaAdmin> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Que todavía no se pueda ganar no es un error: es el
-                    // estado normal hasta que se le cargue una condición.
-                    if (insignia != null && !insignia.sePuedeGanar) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.superficie,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.borde),
-                        ),
-                        child: Text(
-                          'Todavía no la puede ganar nadie: no tiene definido cómo '
-                          'se obtiene.',
-                          style: AppText.sans(size: 13),
+                    // Lo más importante de una insignia es cómo se gana, así
+                    // que va arriba del formulario y no escondido entre las
+                    // acciones del final. En el alta no está: la insignia
+                    // todavía no tiene id al que colgarle una condición.
+                    if (insignia != null) ...[
+                      InkWell(
+                        onTap: _ocupado ? null : _abrirCondicion,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.superficie,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: insignia.sePuedeGanar ? AppColors.borde : AppColors.media,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.flag_outlined,
+                                size: 20,
+                                color: insignia.sePuedeGanar
+                                    ? AppColors.acento
+                                    : AppColors.media,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Cómo se gana',
+                                      style: AppText.sans(
+                                        size: 14,
+                                        color: AppColors.textoPrimario,
+                                        peso: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      insignia.comoSeGana,
+                                      style: AppText.sans(
+                                        size: 12.5,
+                                        color: insignia.sePuedeGanar
+                                            ? AppColors.textoSecundario
+                                            : AppColors.media,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: AppColors.textoInactivo),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 22),
                     ],
 
                     FormularioInsignia(

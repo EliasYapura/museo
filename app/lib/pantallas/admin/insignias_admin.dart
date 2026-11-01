@@ -230,16 +230,19 @@ class _Tarjeta extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Lo primero que hay que saber de una insignia recién creada es
-              // que todavía no se puede ganar.
+              // Cómo se gana, dicho en castellano. Lo primero que hay que
+              // saber de una insignia recién creada es que todavía no se
+              // puede ganar, y por eso ese caso va resaltado.
               Expanded(
                 child: Text(
-                  insignia.sePuedeGanar ? 'Con condición cargada' : 'Falta definir cómo se gana',
+                  insignia.comoSeGana,
                   style: AppText.sans(
                     size: 12.5,
                     color: insignia.sePuedeGanar ? AppColors.textoInactivo : AppColors.media,
                     peso: insignia.sePuedeGanar ? FontWeight.w400 : FontWeight.w700,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 10),

@@ -37,8 +37,30 @@ class Insignia {
   /// Si ya tiene una regla cargada y se puede ganar.
   bool get sePuedeGanar => condicion.isNotEmpty;
 
-  /// El tipo de condición, cuando tiene una. Es lo que va a editar ADM20.
+  /// El tipo de condición, cuando tiene una (ADM20).
   String? get tipoDeCondicion => condicion['tipo'] as String?;
+
+  /// Cómo se gana, dicho en castellano.
+  ///
+  /// No nombra las misiones porque acá no se tienen a mano: para eso está la
+  /// pantalla de la condición, que sí las lista. Esto es el resumen de una
+  /// línea, lo justo para no tener que abrirla para saber qué hay cargado.
+  String get comoSeGana {
+    switch (tipoDeCondicion) {
+      case 'misiones_completadas':
+        final cuantas = (condicion['misiones'] as List?)?.length ?? 0;
+        return cuantas == 1
+            ? 'Completar una misión'
+            : 'Completar $cuantas misiones';
+      case 'mision_sin_pistas':
+        return 'Completar una misión sin pedir pistas';
+      case 'escaneos_sin_error':
+        final cuantos = condicion['cantidad'];
+        return 'Resolver $cuantos desafíos de escaneo sin errar ninguno';
+      default:
+        return 'Falta definir cómo se gana';
+    }
+  }
 
   factory Insignia.desdeJson(Map<String, dynamic> json) {
     return Insignia(
