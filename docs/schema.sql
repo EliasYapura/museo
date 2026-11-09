@@ -128,6 +128,11 @@ CREATE TABLE misiones (
 
 CREATE INDEX idx_misiones_activas ON misiones(activa) WHERE archivada = FALSE;
 
+COMMENT ON COLUMN misiones.dificultad IS
+    'La calcula el servidor a partir de la duración, la cantidad de desafíos y el tipo '
+    'de cada uno (ADM03). No la elige el administrador: se recalcula al editar la misión '
+    'o al agregar, cambiar o borrar un desafío. El valor por defecto solo vale el instante '
+    'entre el INSERT de una misión nueva y su primer cálculo.';
 COMMENT ON COLUMN misiones.mision_previa_id IS
     'Misión que debe completarse antes de desbloquear esta (historia VIS12).';
 COMMENT ON COLUMN misiones.archivada IS

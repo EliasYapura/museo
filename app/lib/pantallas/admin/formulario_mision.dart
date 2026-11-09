@@ -42,7 +42,6 @@ class _FormularioMisionState extends State<FormularioMision> {
   late final TextEditingController _descripcion;
   late final TextEditingController _duracion;
   late final TextEditingController _imagen;
-  late Dificultad _dificultad;
 
   bool _guardando = false;
   String _error = '';
@@ -59,7 +58,6 @@ class _FormularioMisionState extends State<FormularioMision> {
     _descripcion = TextEditingController(text: m?.descripcion ?? '');
     _duracion = TextEditingController(text: m == null ? '' : '${m.duracionMin}');
     _imagen = TextEditingController(text: m?.imagenUrl ?? '');
-    _dificultad = m?.dificultad ?? Dificultad.media;
   }
 
   @override
@@ -88,7 +86,6 @@ class _FormularioMisionState extends State<FormularioMision> {
         'nombre': _nombre.text.trim(),
         'descripcion': _descripcion.text.trim(),
         'duracion_estimada': int.parse(_duracion.text.trim()),
-        'dificultad': _dificultad.name,
         // Sin imagen se manda null, no el texto vacío.
         'imagen_url': imagen.isEmpty ? null : imagen,
       });
@@ -228,44 +225,12 @@ class _FormularioMisionState extends State<FormularioMision> {
           ),
           const SizedBox(height: 18),
 
-          const EtiquetaCampo('Dificultad', obligatorio: true),
-          // Botones segmentados en vez de una lista desplegable: las tres
-          // opciones entran a la vista y se eligen de un toque.
-          SegmentedButton<Dificultad>(
-            segments: [
-              for (final d in Dificultad.values)
-                ButtonSegment(
-                  value: d,
-                  // El color va acá y no en el estilo del botón: AppText.sans
-                  // fija el suyo y pisaría el del botón, dejando la opción
-                  // elegida en gris sobre ocre, que casi no se lee.
-                  label: Text(
-                    d.etiqueta,
-                    style: AppText.sans(
-                      size: 13,
-                      color: _dificultad == d ? AppColors.fondo : AppColors.textoSecundario,
-                      peso: _dificultad == d ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                ),
-            ],
-            selected: {_dificultad},
-            onSelectionChanged: (elegida) => setState(() => _dificultad = elegida.first),
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (estados) => estados.contains(WidgetState.selected)
-                    ? AppColors.acento
-                    : AppColors.superficie,
-              ),
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (estados) => estados.contains(WidgetState.selected)
-                    ? AppColors.fondo
-                    : AppColors.textoSecundario,
-              ),
-              side: const WidgetStatePropertyAll(BorderSide(color: AppColors.borde)),
-            ),
-          ),
+          const EtiquetaCampo('Dificultad'),
+          // Ya no se elige: la calcula el servidor con la duracion, la cantidad
+          // de desafios y el tipo de cada uno (ADM03). Se muestra igual, porque
+          // el administrador tiene que poder ver que nivel le quedo a la mision
+          // sin salir del formulario.
+          _DificultadCalculada(dificultad: widget.mision?.dificultad),
           const SizedBox(height: 18),
 
           const EtiquetaCampo('Imagen de portada', opcional: true),
@@ -341,6 +306,57 @@ class _VistaPrevia extends StatelessWidget {
             style: AppText.sans(size: 13),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// La dificultad que calculo el servidor (ADM03).
+///
+/// En una mision nueva todavia no hay ninguna: se calcula al guardar, cuando
+/// el servidor ya conoce la duracion. Decirlo es mejor que mostrar un nivel
+/// inventado que despues cambia solo.
+class _DificultadCalculada extends StatelessWidget {
+  final Dificultad? dificultad;
+
+  const _DificultadCalculada({required this.dificultad});
+
+  @override
+  Widget build(BuildContext context) {
+    final nivel = dificultad;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.superficie,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borde),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 17, color: AppColors.acento),
+              const SizedBox(width: 9),
+              Text(
+                nivel == null ? 'Se calcula al guardar' : nivel.etiqueta,
+                style: AppText.sans(
+                  size: 14.5,
+                  color: nivel == null ? AppColors.textoSecundario : AppColors.textoPrimario,
+                  peso: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            'La calcula el sistema con la duración, la cantidad de desafíos y el '
+            'tipo de cada uno. Cambia sola cuando cambia la misión.',
+            style: AppText.sans(size: 12.5),
+          ),
+        ],
       ),
     );
   }

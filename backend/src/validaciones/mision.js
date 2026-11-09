@@ -24,19 +24,10 @@ function validarTextoObligatorio(valor, mensajeObligatorio) {
   return { valor: valor.trim() };
 }
 
-// Los tres valores del enum dificultad_mision de la base (ADM03). Si no viene,
-// queda en 'media', el valor por defecto de la columna: es el punto medio y
-// sirve mientras no se piense cuanto cuesta la mision.
-export const DIFICULTADES = ['facil', 'media', 'dificil'];
-export const DIFICULTAD_POR_DEFECTO = 'media';
-
-function validarDificultad(valor) {
-  if (valor === undefined || valor === null || valor === '') {
-    return { valor: DIFICULTAD_POR_DEFECTO };
-  }
-  if (!DIFICULTADES.includes(valor)) return { error: 'La dificultad elegida no es válida' };
-  return { valor };
-}
+// La dificultad no se valida porque no se recibe: la calcula el servidor a
+// partir de la duracion, la cantidad de desafios y el tipo de cada uno
+// (ADM03, en dificultad.js). Si el cuerpo del pedido trae una, se ignora como
+// cualquier otro campo que no este en esta lista.
 
 function validarDuracion(valor) {
   if (valor === undefined || valor === null || valor === '') {
@@ -57,7 +48,6 @@ export function validarMision(datos) {
     nombre: validarTextoObligatorio(datos.nombre, 'El nombre es obligatorio'),
     descripcion: validarTextoObligatorio(datos.descripcion, 'La descripción es obligatoria'),
     duracion_estimada: validarDuracion(datos.duracion_estimada),
-    dificultad: validarDificultad(datos.dificultad),
     imagen_url: validarImagen(datos.imagen_url),
   };
 

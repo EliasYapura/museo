@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { recalcularDificultad } from '../dificultad.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
 import { validarDesafio } from '../validaciones/desafio.js';
@@ -101,6 +102,8 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
         valores.puntos,
       ]
     );
+    // Un desafio mas cambia cuanto cuesta la mision (ADM03).
+    await recalcularDificultad(misionId, pool);
     return res.status(201).json({ desafio: rows[0] });
   } catch (err) {
     if (esObjetoInexistente(err)) return res.status(400).json(OBJETO_INEXISTENTE);
@@ -242,7 +245,12 @@ desafiosRouter.put('/:id', async (req, res) => {
         valores.puntos,
       ]
     );
-    if (rows[0]) return res.json({ desafio: rows[0], modificado: true });
+    // Cambiar el tipo cambia cuanto cuesta la mision (ADM03). Se recalcula
+    // solo si el desafio cambio: si no cambio nada, la dificultad tampoco.
+    if (rows[0]) {
+      await recalcularDificultad(rows[0].mision_id, pool);
+      return res.json({ desafio: rows[0], modificado: true });
+    }
 
     const existente = await pool.query(`SELECT ${COLUMNAS} ${DESDE} WHERE d.id = $1`, [req.params.id]);
     if (!existente.rows[0]) return res.status(404).json(NO_ENCONTRADO);
@@ -287,10 +295,13 @@ desafiosRouter.delete('/:id', async (req, res) => {
        RETURNING m.id
      )
      SELECT (SELECT count(*) FROM borrado) AS borrados,
-            (SELECT count(*) FROM despublicada) AS despublicadas`,
+            (SELECT count(*) FROM despublicada) AS despublicadas,
+            (SELECT mision_id FROM borrado) AS mision_id`,
     [req.params.id]
   );
   if (Number(rows[0].borrados) === 0) return res.status(404).json(NO_ENCONTRADO);
+  // Un desafio menos cambia cuanto cuesta la mision (ADM03).
+  await recalcularDificultad(rows[0].mision_id, pool);
   // Devuelve si la mision quedo en borrador, para que el panel pueda avisarlo:
   // es un cambio que el administrador no pidio y que no se ve en esa pantalla.
   return res.json({ despublicada: Number(rows[0].despublicadas) > 0 });

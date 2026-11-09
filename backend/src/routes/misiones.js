@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { recalcularDificultad } from '../dificultad.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
 import { esIdValido } from '../validaciones/id.js';
@@ -62,18 +63,21 @@ misionesRouter.post('/', async (req, res) => {
     // - creada_por sale del token y no del cuerpo, para que nadie pueda
     //   atribuirle la creacion de una mision a otra persona.
     const { rows } = await pool.query(
-      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, dificultad, creada_por)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, creada_por)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING ${COLUMNAS}`,
       [
         valores.nombre,
         valores.descripcion,
         valores.duracion_estimada,
         valores.imagen_url,
-        valores.dificultad,
         req.usuario.id,
       ]
     );
+    // La dificultad la calcula el servidor (ADM03). Al insertar queda el valor
+    // por defecto de la columna, asi que se recalcula enseguida y se corrige en
+    // la respuesta: devolver el valor por defecto seria mentirle al formulario.
+    rows[0].dificultad = await recalcularDificultad(rows[0].id, pool);
     return res.status(201).json({ mision: rows[0] });
   } catch (err) {
     if (responderSiEsErrorDeDatos(err, res)) return;
@@ -103,14 +107,12 @@ misionesRouter.put('/:id', async (req, res) => {
     // NULL: NULL <> NULL da NULL, no FALSE.
     const { rows } = await pool.query(
       `UPDATE misiones
-       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5,
-           dificultad = $6
+       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5
        WHERE id = $1 AND archivada = FALSE
          AND (nombre IS DISTINCT FROM $2
               OR descripcion IS DISTINCT FROM $3
               OR duracion_estimada IS DISTINCT FROM $4
-              OR imagen_url IS DISTINCT FROM $5
-              OR dificultad IS DISTINCT FROM $6)
+              OR imagen_url IS DISTINCT FROM $5)
        RETURNING ${COLUMNAS}`,
       [
         req.params.id,
@@ -118,10 +120,17 @@ misionesRouter.put('/:id', async (req, res) => {
         valores.descripcion,
         valores.duracion_estimada,
         valores.imagen_url,
-        valores.dificultad,
       ]
     );
-    if (rows[0]) return res.json({ mision: rows[0], modificada: true });
+    // Cambiar la duracion cambia la dificultad (ADM03), asi que se recalcula.
+    // Tambien cuando el editar no modifico nada: las misiones viejas traen una
+    // dificultad puesta a mano, y esta es la ocasion de corregirla. El
+    // recalculo solo escribe si el nivel cambia, asi que no mueve la fecha de
+    // ultima modificacion por las suyas.
+    if (rows[0]) {
+      rows[0].dificultad = await recalcularDificultad(rows[0].id, pool);
+      return res.json({ mision: rows[0], modificada: true });
+    }
 
     // Ninguna fila actualizada: o la mision no existe, o no habia cambios.
     const existente = await pool.query(
@@ -129,6 +138,7 @@ misionesRouter.put('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!existente.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+    existente.rows[0].dificultad = await recalcularDificultad(req.params.id, pool);
     return res.json({ mision: existente.rows[0], modificada: false });
   } catch (err) {
     if (responderSiEsErrorDeDatos(err, res)) return;
