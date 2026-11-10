@@ -240,7 +240,7 @@ class _PantallaMisionAdminState extends State<PantallaMisionAdmin> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sí, archivar',
-              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+              style: AppText.sans(size: 14, color: AppColors.error, peso: FontWeight.w700),
             ),
           ),
         ],
@@ -535,13 +535,13 @@ class _SeccionEstado extends StatelessWidget {
               icon: Icon(
                 Icons.inventory_2_outlined,
                 size: 18,
-                color: ocupado ? AppColors.textoInactivo : AppColors.dificil,
+                color: ocupado ? AppColors.textoInactivo : AppColors.error,
               ),
               label: Text(
                 'Archivar misión',
                 style: AppText.sans(
                   size: 13.5,
-                  color: ocupado ? AppColors.textoInactivo : AppColors.dificil,
+                  color: ocupado ? AppColors.textoInactivo : AppColors.error,
                   peso: FontWeight.w700,
                 ),
               ),

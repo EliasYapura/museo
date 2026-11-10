@@ -20,20 +20,46 @@ enum IconoMision { cristal, sauropodo, amonite, perezoso }
 class AppColors {
   static const fondo = Color(0xFF12211F);
   static const superficie = Color(0xFF1B2E2B);
+  /// El borde de las tarjetas. Es decoración: la tarjeta ya se distingue del
+  /// fondo por su relleno, así que no necesita llegar al 3:1 de WCAG.
   static const borde = Color(0xFF2C4440);
+
+  /// El borde de los campos de texto en reposo.
+  ///
+  /// Acá el borde SÍ es lo que identifica el control —sin él, un campo vacío
+  /// es un rectángulo igual al resto—, así que WCAG pide 3:1 contra su propio
+  /// relleno. El borde de las tarjetas daba 1,36:1; éste da 3,09:1 (VIS13).
+  static const bordeCampo = Color(0xFF517D76);
   static const navFondo = Color(0xFF0E1B19);
 
   static const textoPrimario = Color(0xFFF1EDE4);
   static const textoSecundario = Color(0xFF9DB0AA);
   static const textoTerciario = Color(0xFF8CA39C);
-  static const textoInactivo = Color(0xFF7C918B);
+  // Aclarado desde 0xFF7C918B: sobre superficie daba 4,27:1 y no llegaba al
+  // 4,5:1 que pide WCAG AA para texto normal (VIS13). Ahora da 4,62:1.
+  static const textoInactivo = Color(0xFF839791);
 
   static const acento = Color(0xFFD9A441); // ocre dorado
   static const acentoGuarda = Color(0x8CD9A441); // acento al 55%
   static const acentoSepta = Color(0xF2D9A441); // acento al 95%
   static const facil = Color(0xFF7FA88A);
   static const media = Color(0xFFD9A441);
+
+  /// El color del nivel difícil. Se usa SÓLO como marca decorativa —el punto
+  /// de 7×7 de la tarjeta de misión— y siempre acompañado de la palabra
+  /// "Difícil", así que no transmite información por sí mismo.
+  ///
+  /// Para texto no alcanza: sobre superficie da 2,90:1. Para eso está [error].
   static const dificil = Color(0xFFB5533C);
+
+  /// Lo que avisa que algo salió mal: mensajes de error, el asterisco de campo
+  /// obligatorio y las acciones de borrar.
+  ///
+  /// Es el mismo tono que [dificil] pero aclarado hasta 4,63:1 sobre
+  /// superficie, que es donde peor contrasta (VIS13). Antes compartían color y
+  /// el resultado era que lo menos legible de la app era justamente lo que
+  /// avisa de un problema.
+  static const error = Color(0xFFCE7E6B);
 }
 
 // =============================================================================

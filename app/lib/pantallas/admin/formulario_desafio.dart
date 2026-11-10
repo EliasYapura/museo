@@ -675,7 +675,7 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
               decoration: BoxDecoration(
                 color: AppColors.superficie,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: error != null ? AppColors.dificil : AppColors.borde),
+                border: Border.all(color: error != null ? AppColors.error : AppColors.borde),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<int?>(
@@ -792,7 +792,7 @@ class _MensajeError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 6, left: 2),
-      child: Text(texto, style: AppText.sans(size: 12.5, color: AppColors.dificil)),
+      child: Text(texto, style: AppText.sans(size: 12.5, color: AppColors.error)),
     );
   }
 }

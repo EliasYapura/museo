@@ -454,7 +454,7 @@ class _HojaPistaState extends State<_HojaPista> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sí, borrar',
-              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+              style: AppText.sans(size: 14, color: AppColors.error, peso: FontWeight.w700),
             ),
           ),
         ],
@@ -537,13 +537,13 @@ class _HojaPistaState extends State<_HojaPista> {
                     icon: Icon(
                       Icons.delete_outline,
                       size: 18,
-                      color: _ocupado ? AppColors.textoInactivo : AppColors.dificil,
+                      color: _ocupado ? AppColors.textoInactivo : AppColors.error,
                     ),
                     label: Text(
                       _borrando ? 'Borrando…' : 'Borrar pista',
                       style: AppText.sans(
                         size: 13.5,
-                        color: _ocupado ? AppColors.textoInactivo : AppColors.dificil,
+                        color: _ocupado ? AppColors.textoInactivo : AppColors.error,
                         peso: FontWeight.w700,
                       ),
                     ),
@@ -663,7 +663,7 @@ class _Nota extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.superficie,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: seLoComen ? AppColors.dificil : AppColors.borde),
+        border: Border.all(color: seLoComen ? AppColors.error : AppColors.borde),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

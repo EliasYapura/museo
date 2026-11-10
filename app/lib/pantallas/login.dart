@@ -88,7 +88,7 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 decoration: BoxDecoration(
                   color: AppColors.superficie,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.dificil),
+                  border: Border.all(color: AppColors.error),
                 ),
                 child: Text(
                   _error,
@@ -213,13 +213,13 @@ class _PantallaLoginState extends State<PantallaLogin> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.dificil),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.dificil),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
-        errorStyle: AppText.sans(size: 12.5, color: AppColors.dificil),
+        errorStyle: AppText.sans(size: 12.5, color: AppColors.error),
       );
 }
 

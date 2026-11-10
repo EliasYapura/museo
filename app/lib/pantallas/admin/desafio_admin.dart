@@ -145,7 +145,7 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sí, borrar',
-              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+              style: AppText.sans(size: 14, color: AppColors.error, peso: FontWeight.w700),
             ),
           ),
         ],
@@ -269,13 +269,13 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
                           icon: Icon(
                             Icons.delete_outline,
                             size: 18,
-                            color: _borrando ? AppColors.textoInactivo : AppColors.dificil,
+                            color: _borrando ? AppColors.textoInactivo : AppColors.error,
                           ),
                           label: Text(
                             _borrando ? 'Borrando…' : 'Borrar desafío',
                             style: AppText.sans(
                               size: 13.5,
-                              color: _borrando ? AppColors.textoInactivo : AppColors.dificil,
+                              color: _borrando ? AppColors.textoInactivo : AppColors.error,
                               peso: FontWeight.w700,
                             ),
                           ),

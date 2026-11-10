@@ -163,7 +163,15 @@ class _PantallaEscaneoState extends State<PantallaEscaneo> {
                 width: lado,
                 height: lado,
               );
-              return MobileScanner(
+              // Para un lector de pantalla el visor es una región sin
+              // contenido: la imagen de la cámara y el marco dibujado no
+              // significan nada leídos. Se reemplazan por una sola etiqueta
+              // que explica qué hay que hacer con el teléfono.
+              return Semantics(
+                label: 'Visor de la cámara. Apuntá el teléfono al código que '
+                    'está en el cartel junto a la pieza.',
+                excludeSemantics: true,
+                child: MobileScanner(
                 controller: _controlador,
                 // Sólo cuenta lo que entra en el recuadro. Si no, el marco
                 // sería un dibujo que miente: leería códigos de afuera.
@@ -175,6 +183,7 @@ class _PantallaEscaneoState extends State<PantallaEscaneo> {
                 overlayBuilder: (context, restriccionesDelMarco) => CustomPaint(
                   size: restriccionesDelMarco.biggest,
                   painter: _MarcoPainter(ventana: ventana),
+                ),
                 ),
               );
             },
@@ -341,10 +350,16 @@ class _Pie extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (error.isNotEmpty) ...[
-            Text(
-              error,
-              textAlign: TextAlign.center,
-              style: AppText.sans(size: 14, color: Colors.white),
+            // liveRegion: el lector de pantalla lo anuncia solo al aparecer.
+            // Sin esto, quien no ve la pantalla apunta el teléfono sin saber
+            // que el código se leyó mal y nadie se lo dice.
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                error,
+                textAlign: TextAlign.center,
+                style: AppText.sans(size: 14, color: Colors.white),
+              ),
             ),
             if (alReintentar != null) ...[
               const SizedBox(height: 14),
@@ -361,10 +376,13 @@ class _Pie extends StatelessWidget {
               ),
             ],
           ] else
-            Text(
-              consultando ? 'Comprobando el código…' : 'Apuntá al código QR del cartel',
-              textAlign: TextAlign.center,
-              style: AppText.sans(size: 14, color: Colors.white70),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                consultando ? 'Comprobando el código…' : 'Apuntá al código QR del cartel',
+                textAlign: TextAlign.center,
+                style: AppText.sans(size: 14, color: Colors.white70),
+              ),
             ),
         ],
       ),

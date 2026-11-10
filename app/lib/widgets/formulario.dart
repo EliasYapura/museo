@@ -21,7 +21,7 @@ class EtiquetaCampo extends StatelessWidget {
         children: [
           Text(texto, style: AppText.sans(size: 13.5, peso: FontWeight.w700)),
           if (obligatorio)
-            Text(' *', style: AppText.sans(size: 13.5, color: AppColors.dificil, peso: FontWeight.w700)),
+            Text(' *', style: AppText.sans(size: 13.5, color: AppColors.error, peso: FontWeight.w700)),
           if (opcional) Text('  (opcional)', style: AppText.sans(size: 12.5)),
         ],
       ),
@@ -44,11 +44,11 @@ InputDecoration decoracionCampo({Widget? suffixIcon, String? pista}) {
     hintText: pista,
     hintStyle: AppText.sans(size: 14, color: AppColors.textoInactivo),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    enabledBorder: borde(AppColors.borde),
+    enabledBorder: borde(AppColors.bordeCampo),
     focusedBorder: borde(AppColors.acento),
-    errorBorder: borde(AppColors.dificil),
-    focusedErrorBorder: borde(AppColors.dificil),
-    errorStyle: AppText.sans(size: 12.5, color: AppColors.dificil),
+    errorBorder: borde(AppColors.error),
+    focusedErrorBorder: borde(AppColors.error),
+    errorStyle: AppText.sans(size: 12.5, color: AppColors.error),
   );
 }
 
@@ -116,7 +116,7 @@ class Aviso extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.superficie,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: esError ? AppColors.dificil : AppColors.facil),
+        border: Border.all(color: esError ? AppColors.error : AppColors.facil),
       ),
       child: Text(
         texto,

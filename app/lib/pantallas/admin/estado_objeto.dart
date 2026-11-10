@@ -153,7 +153,7 @@ class _EstadoObjetoState extends State<EstadoObjeto> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sí, borrar',
-              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+              style: AppText.sans(size: 14, color: AppColors.error, peso: FontWeight.w700),
             ),
           ),
         ],
@@ -258,7 +258,7 @@ class _EstadoObjetoState extends State<EstadoObjeto> {
                 size: 18,
                 color: _ocupado || !_sePuedeBorrar
                     ? AppColors.textoInactivo
-                    : AppColors.dificil,
+                    : AppColors.error,
               ),
               label: Text(
                 'Borrar pieza',
@@ -266,7 +266,7 @@ class _EstadoObjetoState extends State<EstadoObjeto> {
                   size: 13.5,
                   color: _ocupado || !_sePuedeBorrar
                       ? AppColors.textoInactivo
-                      : AppColors.dificil,
+                      : AppColors.error,
                   peso: FontWeight.w700,
                 ),
               ),

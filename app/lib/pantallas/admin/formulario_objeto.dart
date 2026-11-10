@@ -379,7 +379,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
               decoration: BoxDecoration(
                 color: AppColors.superficie,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: error != null ? AppColors.dificil : AppColors.borde),
+                border: Border.all(color: error != null ? AppColors.error : AppColors.borde),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<int>(
@@ -421,7 +421,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 2),
-            child: Text(error, style: AppText.sans(size: 12.5, color: AppColors.dificil)),
+            child: Text(error, style: AppText.sans(size: 12.5, color: AppColors.error)),
           ),
       ],
     );
@@ -473,7 +473,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
               decoration: BoxDecoration(
                 color: AppColors.superficie,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: error != null ? AppColors.dificil : AppColors.borde),
+                border: Border.all(color: error != null ? AppColors.error : AppColors.borde),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<int?>(
@@ -519,7 +519,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 2),
-            child: Text(error, style: AppText.sans(size: 12.5, color: AppColors.dificil)),
+            child: Text(error, style: AppText.sans(size: 12.5, color: AppColors.error)),
           ),
       ],
     );
@@ -571,6 +571,10 @@ class _VistaPrevia extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Image.network(
         url,
+        // Sin etiqueta el lector de pantalla anuncia "imagen" y nada más. Acá
+        // lo útil no es describir la foto —que la carga quien la está
+        // mirando— sino decir de qué imagen se trata.
+        semanticLabel: 'Vista previa de la pieza',
         height: 160,
         width: double.infinity,
         fit: BoxFit.cover,

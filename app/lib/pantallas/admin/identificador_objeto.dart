@@ -117,7 +117,7 @@ class _IdentificadorObjetoState extends State<IdentificadorObjeto> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sí, generar uno nuevo',
-              style: AppText.sans(size: 14, color: AppColors.dificil, peso: FontWeight.w700),
+              style: AppText.sans(size: 14, color: AppColors.error, peso: FontWeight.w700),
             ),
           ),
         ],
@@ -232,13 +232,13 @@ class _IdentificadorObjetoState extends State<IdentificadorObjeto> {
               icon: Icon(
                 Icons.autorenew,
                 size: 18,
-                color: _regenerando ? AppColors.textoInactivo : AppColors.dificil,
+                color: _regenerando ? AppColors.textoInactivo : AppColors.error,
               ),
               label: Text(
                 _regenerando ? 'Generando…' : 'Generar un código nuevo',
                 style: AppText.sans(
                   size: 13.5,
-                  color: _regenerando ? AppColors.textoInactivo : AppColors.dificil,
+                  color: _regenerando ? AppColors.textoInactivo : AppColors.error,
                   peso: FontWeight.w700,
                 ),
               ),

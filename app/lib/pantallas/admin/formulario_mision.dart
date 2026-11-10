@@ -282,6 +282,10 @@ class _VistaPrevia extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Image.network(
         url,
+        // Sin etiqueta el lector de pantalla anuncia "imagen" y nada más. Acá
+        // lo útil no es describir la foto —que la carga quien la está
+        // mirando— sino decir de qué imagen se trata.
+        semanticLabel: 'Vista previa de la portada de la misión',
         height: 160,
         width: double.infinity,
         fit: BoxFit.cover,

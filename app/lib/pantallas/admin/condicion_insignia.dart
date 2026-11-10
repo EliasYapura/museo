@@ -249,7 +249,7 @@ class _PantallaCondicionInsigniaState extends State<PantallaCondicionInsignia> {
                     const SizedBox(height: 6),
                     Text(
                       _erroresApi['tipo']!,
-                      style: AppText.sans(size: 12.5, color: AppColors.dificil),
+                      style: AppText.sans(size: 12.5, color: AppColors.error),
                     ),
                   ],
 
@@ -298,7 +298,7 @@ class _PantallaCondicionInsigniaState extends State<PantallaCondicionInsignia> {
             const SizedBox(height: 6),
             Text(
               _erroresApi['cantidad']!,
-              style: AppText.sans(size: 12.5, color: AppColors.dificil),
+              style: AppText.sans(size: 12.5, color: AppColors.error),
             ),
           ],
         ],
@@ -327,7 +327,7 @@ class _PantallaCondicionInsigniaState extends State<PantallaCondicionInsignia> {
             if (snapshot.hasError) {
               return Text(
                 'No se pudieron cargar las misiones.',
-                style: AppText.sans(size: 13.5, color: AppColors.dificil),
+                style: AppText.sans(size: 13.5, color: AppColors.error),
               );
             }
 
@@ -368,7 +368,7 @@ class _PantallaCondicionInsigniaState extends State<PantallaCondicionInsignia> {
         ),
         if (errorDeMisiones != null) ...[
           const SizedBox(height: 8),
-          Text(errorDeMisiones, style: AppText.sans(size: 12.5, color: AppColors.dificil)),
+          Text(errorDeMisiones, style: AppText.sans(size: 12.5, color: AppColors.error)),
         ],
       ],
     );

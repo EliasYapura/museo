@@ -801,7 +801,7 @@ class _PreguntaState extends State<_Pregunta> {
 
         if (_aviso.isNotEmpty) ...[
           const SizedBox(height: 14),
-          Text(_aviso, style: AppText.sans(size: 13.5, color: AppColors.dificil)),
+          Text(_aviso, style: AppText.sans(size: 13.5, color: AppColors.error)),
         ],
 
         const SizedBox(height: 18),
