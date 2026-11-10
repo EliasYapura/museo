@@ -5,6 +5,7 @@ import '../../estilo.dart';
 import '../../modelos/categoria.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
+import 'categorias_admin.dart';
 import 'objeto_admin.dart';
 
 /// Las piezas del museo, en el orden del recorrido.
@@ -63,6 +64,21 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
     });
   }
 
+  /// Abre la administración de categorías.
+  ///
+  /// Al volver se recarga todo: crear, renombrar o borrar una categoría cambia
+  /// el filtro de esta pantalla, y borrar una deja piezas sin clasificar.
+  Future<void> _abrirCategorias() async {
+    final huboCambios = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const PantallaCategoriasAdmin()),
+    );
+    if (huboCambios != true || !mounted) return;
+    // Si el filtro puesto era una categoría que ya no existe, se vuelve a
+    // "todas": filtrar por algo borrado dejaría la lista vacía sin explicación.
+    if (_filtro != null && _filtro != sinCategoria) _filtro = null;
+    await _recargar();
+  }
+
   /// Abre el alta o la edición. Si hubo cambios, el listado se vuelve a pedir.
   Future<void> _abrir({Objeto? objeto}) async {
     final huboCambios = await Navigator.of(context).push<bool>(
@@ -110,6 +126,12 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
                       'Administración',
                       style: AppText.sans(size: 13).copyWith(letterSpacing: 0.6),
                     ),
+                  ),
+                  IconButton(
+                    onPressed: _abrirCategorias,
+                    icon: const Icon(Icons.label_outline),
+                    color: AppColors.acento,
+                    tooltip: 'Categorías',
                   ),
                   IconButton(
                     onPressed: _recargar,

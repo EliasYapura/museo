@@ -506,6 +506,48 @@ Future<({List<Categoria> categorias, int sinClasificar})> listarCategorias(Strin
   }
 }
 
+/// POST /categorias — crea una categoría.
+Future<Categoria> crearCategoria(String token, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson('/categorias', token: token, metodo: 'POST', cuerpo: datos);
+  return _categoriaDesde(cuerpo);
+}
+
+/// PUT /categorias/:id — le cambia el nombre.
+///
+/// Las piezas clasificadas no se tocan: siguen apuntando a la misma categoría.
+Future<Categoria> editarCategoria(String token, int id, Map<String, dynamic> datos) async {
+  final cuerpo = await _pedirJson(
+    '/categorias/$id',
+    token: token,
+    metodo: 'PUT',
+    cuerpo: datos,
+    mensaje404: 'Esa categoría ya no existe.',
+  );
+  return _categoriaDesde(cuerpo);
+}
+
+Categoria _categoriaDesde(Map<String, dynamic> cuerpo) {
+  try {
+    return Categoria.desdeJson(cuerpo['categoria'] as Map<String, dynamic>);
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// DELETE /categorias/:id — borra una categoría.
+///
+/// No borra ninguna pieza: las que la tenían quedan sin clasificar. Devuelve
+/// cuántas quedaron así, para poder decirlo después de hacerlo.
+Future<int> borrarCategoria(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/categorias/$id',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa categoría ya no existe.',
+  );
+  return (cuerpo['sin_clasificar'] as int?) ?? 0;
+}
+
 /// GET /salas — las salas del museo, en el orden del recorrido.
 ///
 /// Es sólo de lectura: las salas se cargan en la base y nunca se
