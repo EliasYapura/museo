@@ -15,6 +15,16 @@ import { salasRouter } from './routes/salas.js';
 // la app completa sin abrir un puerto, por ejemplo para probarla.
 export const app = express();
 
+// Render (y cualquier hosting con TLS por delante) termina el cifrado en un
+// proxy y reenvia la peticion. Sin esto, express ve la IP del proxy en todas,
+// y el limite de intentos de SIS04 contaria a todo el mundo junto: el primero
+// que fallara diez veces dejaria afuera a los demas.
+//
+// Es 1 y no true: con true, express le cree a cualquier X-Forwarded-For que
+// llegue, y entonces basta con falsificar esa cabecera para saltearse el
+// limite. Con 1 solo confia en el proxy inmediato, que es el de Render.
+app.set('trust proxy', 1);
+
 // El navegador bloquea por defecto que una pagina llame a una API de otro
 // origen (el panel corre en otro puerto o dominio). CORS le indica cuales
 // estan autorizados: el panel y la app del visitante cuando se la corre en el

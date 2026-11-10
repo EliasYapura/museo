@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { limiteDeLogin, limiteDeLoginPorIp, limiteDeRegistro } from '../middleware/limites.js';
+import { normalizarEmail } from '../validaciones/email.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
@@ -20,7 +22,7 @@ const HASH_FICTICIO = bcrypt.hashSync('contrasena-ficticia-solo-para-igualar-tie
 
 // "Ana@Mail.com" y "ana@mail.com" son la misma casilla: se guardan iguales
 // para que no se puedan crear dos cuentas con el mismo email.
-const normalizarEmail = (email) => email.trim().toLowerCase();
+
 
 function validarRegistro({ email, password, nombre }) {
   const errores = [];
@@ -48,7 +50,7 @@ function validarRegistro({ email, password, nombre }) {
 }
 
 // POST /auth/registro — crea una cuenta de visitante
-authRouter.post('/registro', async (req, res) => {
+authRouter.post('/registro', limiteDeRegistro, async (req, res) => {
   const { email, password, nombre } = req.body ?? {};
 
   const errores = validarRegistro({ email, password, nombre });
@@ -79,7 +81,7 @@ authRouter.post('/registro', async (req, res) => {
 });
 
 // POST /auth/login — devuelve un JWT si las credenciales son correctas
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', limiteDeLoginPorIp, limiteDeLogin, async (req, res) => {
   const { email, password } = req.body ?? {};
 
   if (typeof email !== 'string' || typeof password !== 'string') {
