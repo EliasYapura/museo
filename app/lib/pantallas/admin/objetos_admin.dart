@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/cliente.dart';
 import '../../estilo.dart';
+import '../../modelos/categoria.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
 import 'objeto_admin.dart';
@@ -22,19 +23,44 @@ class PantallaObjetosAdmin extends StatefulWidget {
 
 class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
   Future<List<Objeto>>? _objetos;
+  Future<({List<Categoria> categorias, int sinClasificar})>? _categorias;
+
+  /// Qué filtro está puesto (ADM23): null es sin filtro, [sinCategoria] son
+  /// las piezas sin clasificar, y un número es el id de una categoría.
+  String? _filtro;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _objetos ??= _pedir();
+    _categorias ??= _pedirCategorias();
   }
 
   Future<List<Objeto>> _pedir() {
-    final pedido = listarObjetos(ProveedorSesion.de(context).token!);
+    final pedido = listarObjetos(ProveedorSesion.de(context).token!, categoria: _filtro);
     // El error se maneja en el FutureBuilder; esto solo evita que además se
     // reporte como no atendido.
     pedido.ignore();
     return pedido;
+  }
+
+  Future<({List<Categoria> categorias, int sinClasificar})> _pedirCategorias() {
+    final pedido = listarCategorias(ProveedorSesion.de(context).token!);
+    pedido.ignore();
+    return pedido;
+  }
+
+  /// Cambia el filtro y vuelve a pedir la lista.
+  ///
+  /// El pedido se rehace contra la API en vez de filtrar lo que ya está en
+  /// pantalla: con un acervo grande la lista sin filtrar no se trae entera, y
+  /// filtrar acá daría resultados incompletos sin avisar.
+  void _filtrarPor(String? filtro) {
+    if (_filtro == filtro) return;
+    setState(() {
+      _filtro = filtro;
+      _objetos = _pedir();
+    });
   }
 
   /// Abre el alta o la edición. Si hubo cambios, el listado se vuelve a pedir.
@@ -47,10 +73,15 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
 
   Future<void> _recargar() async {
     final pedido = _pedir();
+    // Las categorías se piden de nuevo junto con los objetos: clasificar una
+    // pieza cambia las cuentas del filtro, y sin esto los números se quedaban
+    // congelados en lo que valían al abrir la pantalla.
+    final pedidoCategorias = _pedirCategorias();
     // Con llaves y no con flecha: la flecha devolveria el Future asignado y
     // setState lo rechaza, dejando la pantalla sin redibujar.
     setState(() {
       _objetos = pedido;
+      _categorias = pedidoCategorias;
     });
     await pedido.then((_) {}, onError: (_, __) {});
   }
@@ -101,10 +132,19 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
                     width: double.infinity,
                     child: CustomPaint(painter: GrecaPainter()),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _FiltroDeCategoria(
+                pedido: _categorias,
+                elegido: _filtro,
+                alElegir: _filtrarPor,
+              ),
+            ),
+            const SizedBox(height: 14),
             Expanded(
               child: FutureBuilder<List<Objeto>>(
                 future: _objetos,
@@ -135,6 +175,18 @@ class _PantallaObjetosAdminState extends State<PantallaObjetosAdmin> {
 
                   final objetos = snapshot.data ?? const <Objeto>[];
                   if (objetos.isEmpty) {
+                    // Con un filtro puesto, la lista vacía no quiere decir que
+                    // el museo no tenga piezas: quiere decir que ninguna entra
+                    // en ese filtro. Ofrecer "Actualizar" ahí sería engañoso.
+                    if (_filtro != null) {
+                      return _Centrado(
+                        texto: _filtro == sinCategoria
+                            ? 'Todas las piezas están clasificadas.'
+                            : 'Ninguna pieza está en esa categoría.',
+                        alTocar: () async => _filtrarPor(null),
+                        textoBoton: 'Ver todas',
+                      );
+                    }
                     return _Centrado(
                       texto: 'Todavía no hay objetos cargados.',
                       alTocar: _recargar,
@@ -228,11 +280,16 @@ class _Tarjeta extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
+          // La sala dice dónde está físicamente; la categoría, con qué otras
+          // piezas se agrupa (ADM23). Van juntas y separadas por un punto
+          // porque son dos formas de ubicar la misma pieza.
           Row(
             children: [
               Expanded(
                 child: Text(
-                  objeto.sala ?? 'Sin sala',
+                  objeto.categoria == null
+                      ? (objeto.sala ?? 'Sin sala')
+                      : '${objeto.sala ?? 'Sin sala'} · ${objeto.categoria}',
                   style: AppText.sans(size: 12.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -339,6 +396,96 @@ class _Centrado extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// El filtro por categoría del listado (ADM23).
+///
+/// Es una lista desplegable y no una tira de chips: un museo puede tener
+/// decenas de disciplinas, y una tira obliga a recorrerla de punta a punta
+/// para ver qué hay. El desplegable las muestra todas de una.
+///
+/// Se ofrecen TODAS las categorías, incluso las que no tienen ninguna pieza,
+/// con su cuenta al lado. Esconder las vacías dejaba al administrador sin
+/// saber qué categorías existen, que es justo lo que necesita para clasificar.
+///
+/// Mientras no llegan no se muestra nada: el filtro es una ayuda, y la lista
+/// de abajo funciona igual sin él.
+class _FiltroDeCategoria extends StatelessWidget {
+  final Future<({List<Categoria> categorias, int sinClasificar})>? pedido;
+  final String? elegido;
+  final void Function(String?) alElegir;
+
+  const _FiltroDeCategoria({
+    required this.pedido,
+    required this.elegido,
+    required this.alElegir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<({List<Categoria> categorias, int sinClasificar})>(
+      future: pedido,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done || snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final datos = snapshot.data;
+        if (datos == null || datos.categorias.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: AppColors.superficie,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.borde),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: elegido,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor: AppColors.superficie,
+              iconEnabledColor: AppColors.acento,
+              items: [
+                _opcion(null, 'Todas las categorías', elegido == null),
+                for (final categoria in datos.categorias)
+                  _opcion(
+                    '${categoria.id}',
+                    '${categoria.nombre} (${categoria.objetos})',
+                    elegido == '${categoria.id}',
+                  ),
+                // Va al final y no entre las demás: es el cajón de lo que
+                // falta ordenar, no una categoría más del museo.
+                _opcion(
+                  sinCategoria,
+                  'Sin categoría (${datos.sinClasificar})',
+                  elegido == sinCategoria,
+                ),
+              ],
+              onChanged: alElegir,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  DropdownMenuItem<String?> _opcion(String? valor, String texto, bool elegido) {
+    return DropdownMenuItem<String?>(
+      value: valor,
+      child: Text(
+        texto,
+        style: AppText.sans(
+          size: 13.5,
+          color: elegido ? AppColors.acento : AppColors.textoSecundario,
+          peso: elegido ? FontWeight.w700 : FontWeight.w400,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

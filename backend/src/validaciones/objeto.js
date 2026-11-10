@@ -41,6 +41,20 @@ function validarSala(valor) {
   return { valor };
 }
 
+// Categoria con la que se clasifica la pieza (ADM23). A diferencia de la sala
+// es OPCIONAL: un museo que carga su acervo de a poco no tiene por que
+// clasificar todo desde el principio, y la columna acepta NULL.
+//
+// null y '' significan lo mismo que no mandarla: sin categoria. Eso es lo que
+// permite sacarle la categoria a una pieza ya clasificada.
+function validarCategoria(valor) {
+  if (valor === undefined || valor === null || valor === '') return { valor: null };
+  if (typeof valor !== 'number' || !Number.isInteger(valor) || valor < 1 || valor > 2147483647) {
+    return { error: 'La categoría elegida no existe' };
+  }
+  return { valor };
+}
+
 // Tipo de identificador que lleva la pieza (ADM17). Son los dos valores del
 // enum tipo_identificador de la base. Si no viene, queda en qr, el valor por
 // defecto de la columna.
@@ -58,6 +72,7 @@ export function validarObjeto(datos) {
   const resultados = {
     nombre: validarTextoObligatorio(datos.nombre, 'El nombre es obligatorio'),
     sala_id: validarSala(datos.sala_id),
+    categoria_id: validarCategoria(datos.categoria_id),
     dato_clave: validarTextoObligatorio(datos.dato_clave, 'El dato clave es obligatorio'),
     descripcion: validarTextoOpcional(datos.descripcion, 'La descripción debe ser un texto'),
     imagen_url: validarImagen(datos.imagen_url),

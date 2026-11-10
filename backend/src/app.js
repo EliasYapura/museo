@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
+import { categoriasRouter } from './routes/categorias.js';
 import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
 import { insigniasRouter } from './routes/insignias.js';
 import { misionesRouter } from './routes/misiones.js';
@@ -46,6 +47,7 @@ app.use('/pistas', pistasRouter);
 app.use('/objetos', objetosRouter);
 app.use('/insignias', insigniasRouter);
 app.use('/salas', salasRouter);
+app.use('/categorias', categoriasRouter);
 
 // Cualquier ruta que no coincidio con las anteriores.
 app.use((req, res) => {

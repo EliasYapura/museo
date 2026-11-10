@@ -20,10 +20,23 @@ objetosRouter.use(verificarToken, requerirRol('administrador'));
 // node-pg entrega como texto; el ::int lo devuelve como numero.
 const COLUMNAS = `o.id, o.nombre, o.dato_clave, o.descripcion, o.imagen_url, o.codigo,
                   o.tipo_identificador, o.activo, o.creado_en, o.sala_id, s.nombre AS sala,
+                  o.categoria_id, c.nombre AS categoria,
                   (SELECT count(*) FROM desafios d WHERE d.objeto_id = o.id)::int AS desafios`;
+
+// La sala es obligatoria y la categoria no, asi que una va con JOIN y la otra
+// con LEFT JOIN. Con un JOIN comun, las piezas sin clasificar desaparecerian
+// de todos los listados — justo las que hay que poder encontrar para
+// clasificarlas (ADM23).
+const DESDE = `FROM objetos o
+               JOIN salas s ON s.id = o.sala_id
+               LEFT JOIN categorias c ON c.id = o.categoria_id`;
 
 const NO_ENCONTRADO = { error: 'El objeto no existe' };
 const SALA_INEXISTENTE = { error: 'Datos inválidos', errores: { sala_id: 'La sala elegida no existe' } };
+const CATEGORIA_INEXISTENTE = {
+  error: 'Datos inválidos',
+  errores: { categoria_id: 'La categoría elegida no existe' },
+};
 
 // --- Codigo del objeto ---------------------------------------------------
 // Es lo que va a contener el QR pegado junto a la pieza, y en el Sprint 3 el
@@ -46,14 +59,38 @@ function generarCodigo() {
 // La base avisa con estos errores cuando algo no cumple una clave.
 const esCodigoRepetido = (err) => err.code === '23505' && err.constraint === 'objetos_codigo_key';
 const esSalaInexistente = (err) => err.code === '23503' && err.constraint === 'objetos_sala_id_fkey';
+const esCategoriaInexistente = (err) =>
+  err.code === '23503' && err.constraint === 'objetos_categoria_id_fkey';
 
 // GET /objetos — lista todos los objetos, activos y dados de baja, en el
 // orden en que aparecen en el recorrido del museo.
+//
+// ?categoria=<id> deja solo los de esa categoria y ?categoria=sin solo los que
+// no tienen ninguna (ADM23). El filtro se aplica en la base y no en la app: un
+// museo con miles de piezas no puede mandarlas todas al telefono para que
+// descarte alla la mayoria.
+//
+// Un ?categoria con cualquier otra cosa se ignora y devuelve la lista entera.
+// Es un filtro, no un dato que se guarda: cortar el listado con un 400 por un
+// parametro mal escrito seria peor que mostrarlo completo.
 objetosRouter.get('/', async (req, res) => {
+  const { categoria } = req.query;
+
+  let condicion = '';
+  const parametros = [];
+  if (categoria === 'sin') {
+    condicion = 'WHERE o.categoria_id IS NULL';
+  } else if (esIdValido(categoria)) {
+    condicion = 'WHERE o.categoria_id = $1';
+    parametros.push(categoria);
+  }
+
   const { rows } = await pool.query(
     `SELECT ${COLUMNAS}
-     FROM objetos o JOIN salas s ON s.id = o.sala_id
-     ORDER BY s.orden_recorrido, o.nombre, o.id`
+     ${DESDE}
+     ${condicion}
+     ORDER BY s.orden_recorrido, o.nombre, o.id`,
+    parametros
   );
   return res.json({ objetos: rows });
 });
@@ -63,7 +100,7 @@ objetosRouter.get('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
 
   const { rows } = await pool.query(
-    `SELECT ${COLUMNAS} FROM objetos o JOIN salas s ON s.id = o.sala_id WHERE o.id = $1`,
+    `SELECT ${COLUMNAS} ${DESDE} WHERE o.id = $1`,
     [req.params.id]
   );
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);
@@ -115,14 +152,15 @@ objetosRouter.post('/', async (req, res) => {
       // el cuerpo. El WITH permite devolver el objeto junto con su sala.
       const { rows } = await pool.query(
         `WITH nuevo AS (
-           INSERT INTO objetos (sala_id, nombre, dato_clave, descripcion, imagen_url,
-                                tipo_identificador, codigo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           INSERT INTO objetos (sala_id, categoria_id, nombre, dato_clave, descripcion,
+                                imagen_url, tipo_identificador, codigo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *
          )
-         SELECT ${COLUMNAS} FROM nuevo o JOIN salas s ON s.id = o.sala_id`,
+         SELECT ${COLUMNAS} FROM nuevo o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
         [
           valores.sala_id,
+          valores.categoria_id,
           valores.nombre,
           valores.dato_clave,
           valores.descripcion,
@@ -135,6 +173,7 @@ objetosRouter.post('/', async (req, res) => {
     } catch (err) {
       if (esCodigoRepetido(err) && intento < INTENTOS_DE_CODIGO) continue;
       if (esSalaInexistente(err)) return res.status(400).json(SALA_INEXISTENTE);
+      if (esCategoriaInexistente(err)) return res.status(400).json(CATEGORIA_INEXISTENTE);
       if (responderSiEsErrorDeDatos(err, res)) return;
       throw err;
     }
@@ -159,21 +198,26 @@ objetosRouter.put('/:id', async (req, res) => {
     const { rows } = await pool.query(
       `WITH cambiado AS (
          UPDATE objetos
-         SET sala_id = $2, nombre = $3, dato_clave = $4, descripcion = $5,
-             imagen_url = $6, tipo_identificador = $7
+         SET sala_id = $2, categoria_id = $3, nombre = $4, dato_clave = $5,
+             descripcion = $6, imagen_url = $7, tipo_identificador = $8
          WHERE id = $1
            AND (sala_id IS DISTINCT FROM $2
-                OR nombre IS DISTINCT FROM $3
-                OR dato_clave IS DISTINCT FROM $4
-                OR descripcion IS DISTINCT FROM $5
-                OR imagen_url IS DISTINCT FROM $6
-                OR tipo_identificador IS DISTINCT FROM $7)
+                -- IS DISTINCT FROM y no <>: la categoria puede ser NULL, y
+                -- NULL <> NULL da NULL, asi que sacarsela o ponersela no
+                -- contaria como un cambio.
+                OR categoria_id IS DISTINCT FROM $3
+                OR nombre IS DISTINCT FROM $4
+                OR dato_clave IS DISTINCT FROM $5
+                OR descripcion IS DISTINCT FROM $6
+                OR imagen_url IS DISTINCT FROM $7
+                OR tipo_identificador IS DISTINCT FROM $8)
          RETURNING *
        )
-       SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
+       SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
       [
         req.params.id,
         valores.sala_id,
+        valores.categoria_id,
         valores.nombre,
         valores.dato_clave,
         valores.descripcion,
@@ -185,13 +229,14 @@ objetosRouter.put('/:id', async (req, res) => {
 
     // Ninguna fila actualizada: o el objeto no existe, o no habia cambios.
     const existente = await pool.query(
-      `SELECT ${COLUMNAS} FROM objetos o JOIN salas s ON s.id = o.sala_id WHERE o.id = $1`,
+      `SELECT ${COLUMNAS} ${DESDE} WHERE o.id = $1`,
       [req.params.id]
     );
     if (!existente.rows[0]) return res.status(404).json(NO_ENCONTRADO);
     return res.json({ objeto: existente.rows[0], modificado: false });
   } catch (err) {
     if (esSalaInexistente(err)) return res.status(400).json(SALA_INEXISTENTE);
+    if (esCategoriaInexistente(err)) return res.status(400).json(CATEGORIA_INEXISTENTE);
     if (responderSiEsErrorDeDatos(err, res)) return;
     throw err;
   }
@@ -211,7 +256,7 @@ objetosRouter.patch('/:id/codigo', async (req, res) => {
         `WITH cambiado AS (
            UPDATE objetos SET codigo = $2 WHERE id = $1 RETURNING *
          )
-         SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
+         SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
         [req.params.id, generarCodigo()]
       );
       if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);
@@ -241,7 +286,7 @@ objetosRouter.patch('/:id/estado', async (req, res) => {
     `WITH cambiado AS (
        UPDATE objetos SET activo = $2 WHERE id = $1 RETURNING *
      )
-     SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id`,
+     SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
     [req.params.id, activo]
   );
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADO);

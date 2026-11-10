@@ -74,6 +74,12 @@ class Objeto {
   final String? sala;
   final int? salaId;
 
+  /// Categoría con la que está clasificada (ADM23). Es opcional: una pieza
+  /// recién cargada puede no tenerla, y en un acervo grande son justamente
+  /// las que hay que poder encontrar para clasificarlas.
+  final String? categoria;
+  final int? categoriaId;
+
   /// El dato que el museo quiere que el visitante se lleve de esta pieza.
   final String datoClave;
 
@@ -92,6 +98,8 @@ class Objeto {
     required this.activo,
     required this.sala,
     required this.salaId,
+    required this.categoria,
+    required this.categoriaId,
     required this.datoClave,
     required this.descripcion,
     required this.imagenUrl,
@@ -110,6 +118,8 @@ class Objeto {
       activo: (json['activo'] as bool?) ?? true,
       sala: json['sala'] as String?,
       salaId: json['sala_id'] as int?,
+      categoria: json['categoria'] as String?,
+      categoriaId: json['categoria_id'] as int?,
       datoClave: (json['dato_clave'] as String?) ?? '',
       descripcion: (json['descripcion'] as String?) ?? '',
       imagenUrl: json['imagen_url'] as String?,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/objeto.dart';
+import '../../modelos/categoria.dart';
 import '../../modelos/sala.dart';
 import '../../sesion/sesion.dart';
 import '../../widgets/formulario.dart';
@@ -44,9 +45,14 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
   late final TextEditingController _imagen;
 
   int? _salaId;
+
+  /// La categoría elegida, o null para "sin categoría" (ADM23). A diferencia
+  /// de la sala es opcional, así que null es un valor válido y no un error.
+  int? _categoriaId;
   late TipoIdentificador _identificador;
 
   Future<List<Sala>>? _salas;
+  Future<({List<Categoria> categorias, int sinClasificar})>? _categorias;
 
   bool _guardando = false;
   String _error = '';
@@ -68,6 +74,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
     _descripcion = TextEditingController(text: o?.descripcion ?? '');
     _imagen = TextEditingController(text: o?.imagenUrl ?? '');
     _salaId = o?.salaId;
+    _categoriaId = o?.categoriaId;
     _identificador = o?.tipoIdentificador ?? TipoIdentificador.qr;
   }
 
@@ -75,6 +82,15 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _salas ??= _pedirSalas();
+    _categorias ??= _pedirCategorias();
+  }
+
+  Future<({List<Categoria> categorias, int sinClasificar})> _pedirCategorias() {
+    final pedido = listarCategorias(ProveedorSesion.de(context).token!);
+    // El error se maneja en el FutureBuilder del selector; esto solo evita que
+    // además se reporte como no atendido.
+    pedido.ignore();
+    return pedido;
   }
 
   Future<List<Sala>> _pedirSalas() {
@@ -123,6 +139,9 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
       final aviso = await widget.alGuardar({
         'nombre': _nombre.text.trim(),
         'sala_id': _salaId,
+        // null es "sin categoría", y es lo que permite sacársela a una pieza
+        // que ya estaba clasificada.
+        'categoria_id': _categoriaId,
         'dato_clave': _datoClave.text.trim(),
         // Sin texto se manda null, no la cadena vacía: así "sin descripción"
         // se representa siempre igual en la base.
@@ -226,6 +245,16 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
 
           const EtiquetaCampo('Sala', obligatorio: true),
           _selectorDeSala(),
+          const SizedBox(height: 18),
+
+          const EtiquetaCampo('Categoría', opcional: true),
+          _selectorDeCategoria(),
+          const SizedBox(height: 4),
+          Text(
+            'Agrupa la pieza con otras de la misma disciplina, aunque estén en '
+            'salas distintas. Sirve para encontrarla después.',
+            style: AppText.sans(size: 12.5),
+          ),
           const SizedBox(height: 18),
 
           const EtiquetaCampo('Dato clave', obligatorio: true),
@@ -383,6 +412,104 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
                     _salaId = elegida;
                     _erroresPropios.remove('sala_id');
                     _erroresApi.remove('sala_id');
+                  }),
+                ),
+              ),
+            );
+          },
+        ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 2),
+            child: Text(error, style: AppText.sans(size: 12.5, color: AppColors.dificil)),
+          ),
+      ],
+    );
+  }
+
+  /// El selector de categoría (ADM23).
+  ///
+  /// Si falla la carga no se bloquea el formulario: la categoría es opcional,
+  /// así que se avisa y se deja guardar la pieza sin ella. Con la sala no se
+  /// puede hacer lo mismo, porque es obligatoria.
+  Widget _selectorDeCategoria() {
+    final error = _erroresApi['categoria_id'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FutureBuilder<({List<Categoria> categorias, int sinClasificar})>(
+          future: _categorias,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const _CajaDeTexto(texto: 'Cargando categorías…');
+            }
+            if (snapshot.hasError) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _CajaDeTexto(
+                    texto: 'No se pudieron cargar las categorías. La pieza se '
+                        'puede guardar igual, sin clasificar.',
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _categorias = _pedirCategorias()),
+                    child: Text(
+                      'Reintentar',
+                      style: AppText.sans(size: 13.5, color: AppColors.acento, peso: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            final categorias = snapshot.data?.categorias ?? const <Categoria>[];
+            // Si la pieza apunta a una categoría que ya no está, se agrega una
+            // entrada para ella: sin esto el selector no sabría qué mostrar.
+            final faltante = _categoriaId != null && !categorias.any((c) => c.id == _categoriaId);
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: AppColors.superficie,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: error != null ? AppColors.dificil : AppColors.borde),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int?>(
+                  value: _categoriaId,
+                  isExpanded: true,
+                  dropdownColor: AppColors.superficie,
+                  iconEnabledColor: AppColors.textoSecundario,
+                  items: [
+                    // La primera opción deja la pieza sin clasificar, y es la
+                    // forma de quitarle una categoría puesta antes.
+                    DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text(
+                        'Sin categoría',
+                        style: AppText.sans(size: 14, color: AppColors.textoInactivo),
+                      ),
+                    ),
+                    if (faltante)
+                      DropdownMenuItem<int?>(
+                        value: _categoriaId,
+                        child: Text('Categoría #$_categoriaId (ya no está)', style: estiloCampo),
+                      ),
+                    for (final categoria in categorias)
+                      DropdownMenuItem<int?>(
+                        value: categoria.id,
+                        child: Text(
+                          categoria.nombre,
+                          style: estiloCampo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (elegida) => setState(() {
+                    _categoriaId = elegida;
+                    _erroresApi.remove('categoria_id');
                   }),
                 ),
               ),

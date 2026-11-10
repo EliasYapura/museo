@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:http/http.dart' as http;
 
+import '../modelos/categoria.dart';
 import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
@@ -468,12 +469,38 @@ Future<void> borrarPista(String token, int id) async {
 }
 
 /// GET /objetos — las piezas del museo, para elegir la de un desafío.
-Future<List<Objeto>> listarObjetos(String token) async {
-  final cuerpo = await _pedirJson('/objetos', token: token);
+/// [categoria] filtra el listado (ADM23): el id de una categoría, o la
+/// constante [sinCategoria] para las piezas sin clasificar. El filtro lo
+/// aplica la API y no la app: con un acervo de miles de piezas, traerlas todas
+/// para descartarlas en el teléfono es justamente lo que hay que evitar.
+Future<List<Objeto>> listarObjetos(String token, {String? categoria}) async {
+  final filtro = categoria == null ? '' : '?categoria=${Uri.encodeQueryComponent(categoria)}';
+  final cuerpo = await _pedirJson('/objetos$filtro', token: token);
   try {
     return (cuerpo['objetos'] as List)
         .map((json) => Objeto.desdeJson(json as Map<String, dynamic>))
         .toList();
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// El valor de filtro que pide las piezas sin clasificar.
+const sinCategoria = 'sin';
+
+/// GET /categorias — las categorías del museo, con cuántas piezas tiene cada
+/// una y cuántas quedaron sin clasificar (ADM23).
+///
+/// Es sólo de lectura, igual que las salas: se cargan en la base.
+Future<({List<Categoria> categorias, int sinClasificar})> listarCategorias(String token) async {
+  final cuerpo = await _pedirJson('/categorias', token: token);
+  try {
+    return (
+      categorias: (cuerpo['categorias'] as List)
+          .map((json) => Categoria.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+      sinClasificar: (cuerpo['sin_categoria'] as int?) ?? 0,
+    );
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }

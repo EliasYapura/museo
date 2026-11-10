@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/cliente.dart';
 import '../../estilo.dart';
+import '../../modelos/categoria.dart';
 import '../../modelos/desafio.dart';
 import '../../modelos/objeto.dart';
 import '../../sesion/sesion.dart';
@@ -94,16 +95,47 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
     _correcta = indice >= 0 ? indice : null;
   }
 
+  Future<({List<Categoria> categorias, int sinClasificar})>? _categorias;
+
+  /// Filtro de categoría del selector de objeto (ADM23). null es sin filtro.
+  ///
+  /// Existe porque en un museo con miles de piezas, elegir una en una lista
+  /// desplegable sin acotarla antes es imposible.
+  String? _filtroCategoria;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _objetos ??= _pedirObjetos();
+    _categorias ??= _pedirCategorias();
   }
 
   Future<List<Objeto>> _pedirObjetos() {
-    final pedido = listarObjetos(ProveedorSesion.de(context).token!);
+    final pedido = listarObjetos(
+      ProveedorSesion.de(context).token!,
+      categoria: _filtroCategoria,
+    );
     pedido.ignore();
     return pedido;
+  }
+
+  Future<({List<Categoria> categorias, int sinClasificar})> _pedirCategorias() {
+    final pedido = listarCategorias(ProveedorSesion.de(context).token!);
+    pedido.ignore();
+    return pedido;
+  }
+
+  /// Cambia el filtro y vuelve a pedir los objetos a la API.
+  ///
+  /// El objeto ya elegido NO se borra: si queda fuera del filtro, el selector
+  /// lo sigue mostrando aparte. Perder la elección por cambiar un filtro sería
+  /// la peor forma de ayudar a buscar.
+  void _filtrarObjetosPor(String? filtro) {
+    if (_filtroCategoria == filtro) return;
+    setState(() {
+      _filtroCategoria = filtro;
+      _objetos = _pedirObjetos();
+    });
   }
 
   @override
@@ -604,6 +636,11 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
               style: AppText.sans(size: 12.5),
             ),
           ),
+        _FiltroDeCategoria(
+          pedido: _categorias,
+          elegido: _filtroCategoria,
+          alElegir: _filtrarObjetosPor,
+        ),
         FutureBuilder<List<Objeto>>(
           future: _objetos,
           builder: (context, snapshot) {
@@ -661,7 +698,15 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
                     if (faltante)
                       DropdownMenuItem<int?>(
                         value: _objetoId,
-                        child: Text('Objeto #$_objetoId (ya no está)', style: estiloCampo),
+                        child: Text(
+                          // Con un filtro puesto, lo más probable es que la
+                          // pieza exista y esté en otra categoría. Decir "ya no
+                          // está" ahí sería una alarma falsa.
+                          _filtroCategoria == null
+                              ? 'Objeto #$_objetoId (ya no está)'
+                              : 'Objeto #$_objetoId (fuera del filtro)',
+                          style: estiloCampo,
+                        ),
                       ),
                     for (final objeto in objetos)
                       DropdownMenuItem<int?>(
@@ -768,6 +813,97 @@ class _CajaDeTexto extends StatelessWidget {
         border: Border.all(color: AppColors.borde),
       ),
       child: Text(texto, style: AppText.sans(size: 14, color: AppColors.textoInactivo)),
+    );
+  }
+}
+
+/// El filtro por categoría del selector de objeto (ADM23).
+///
+/// Es una lista desplegable y no una tira de chips como en el listado de
+/// objetos: acá está metido dentro de un formulario largo, y una tira que se
+/// desplaza al costado se confundiría con los campos.
+///
+/// Se ofrecen todas las categorías con su cuenta al lado, incluidas las que
+/// no tienen piezas: esconderlas dejaba al administrador sin saber qué
+/// categorías existen, y la cuenta ya avisa que filtrar por ésa no va a traer
+/// nada.
+///
+/// Mientras las categorías no llegan no se muestra nada: el filtro es una
+/// ayuda, y el selector de objeto funciona igual sin él.
+class _FiltroDeCategoria extends StatelessWidget {
+  final Future<({List<Categoria> categorias, int sinClasificar})>? pedido;
+  final String? elegido;
+  final void Function(String?) alElegir;
+
+  const _FiltroDeCategoria({
+    required this.pedido,
+    required this.elegido,
+    required this.alElegir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<({List<Categoria> categorias, int sinClasificar})>(
+      future: pedido,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done || snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final datos = snapshot.data;
+        if (datos == null) return const SizedBox.shrink();
+
+        if (datos.categorias.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: AppColors.fondo,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.borde),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: elegido,
+                isExpanded: true,
+                isDense: true,
+                dropdownColor: AppColors.superficie,
+                iconEnabledColor: AppColors.textoSecundario,
+                style: AppText.sans(size: 13, color: AppColors.textoSecundario),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(
+                      'Todas las categorías',
+                      style: AppText.sans(size: 13, color: AppColors.textoSecundario),
+                    ),
+                  ),
+                  for (final categoria in datos.categorias)
+                    DropdownMenuItem<String?>(
+                      value: '${categoria.id}',
+                      child: Text(
+                        '${categoria.nombre} (${categoria.objetos})',
+                        style: AppText.sans(size: 13, color: AppColors.textoSecundario),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  DropdownMenuItem<String?>(
+                    value: sinCategoria,
+                    child: Text(
+                      'Sin categoría (${datos.sinClasificar})',
+                      style: AppText.sans(size: 13, color: AppColors.textoSecundario),
+                    ),
+                  ),
+                ],
+                onChanged: alElegir,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
