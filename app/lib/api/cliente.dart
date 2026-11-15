@@ -75,21 +75,28 @@ const _espera = Duration(seconds: 60);
 ///
 /// [mensaje404] permite que cada pedido explique a su manera un 404; sin él,
 /// se trata como cualquier otra respuesta inesperada.
+/// [bytes] y [tipoDeContenido] mandan el cuerpo crudo en lugar de JSON, para
+/// subir un archivo. Se resuelve acá y no en una función aparte para no
+/// repetir todo el manejo de errores, que es casi todo lo que hace esta.
 Future<Map<String, dynamic>> _pedirJson(
   String ruta, {
   String? mensaje404,
   String? token,
   String metodo = 'GET',
   Map<String, dynamic>? cuerpo,
+  List<int>? bytes,
+  String? tipoDeContenido,
 }) async {
   final http.Response respuesta;
   try {
     final uri = Uri.parse('$apiUrl$ruta');
     final cabeceras = {
-      if (cuerpo != null) 'Content-Type': 'application/json',
+      if (bytes != null && tipoDeContenido != null) 'Content-Type': tipoDeContenido,
+      if (bytes == null && cuerpo != null) 'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
-    final cuerpoCodificado = cuerpo == null ? null : jsonEncode(cuerpo);
+    final Object? cuerpoCodificado =
+        bytes ?? (cuerpo == null ? null : jsonEncode(cuerpo));
     final pedido = switch (metodo) {
       'POST' => http.post(uri, headers: cabeceras, body: cuerpoCodificado),
       'PUT' => http.put(uri, headers: cabeceras, body: cuerpoCodificado),
@@ -483,6 +490,42 @@ Future<List<Objeto>> listarObjetos(String token, {String? categoria}) async {
   } catch (_) {
     throw const ErrorApi('La respuesta del museo no se entendió.');
   }
+}
+
+/// POST /insignias/:id/icono — sube la imagen de una insignia (ADM25).
+///
+/// El archivo va crudo en el cuerpo, con su tipo. El servidor no le cree al
+/// tipo que mandamos: lo reconoce mirando los primeros bytes, así que mandar
+/// cualquier cosa diciendo que es un PNG no sirve de nada.
+///
+/// Tarda más que el resto de los pedidos porque sube un archivo, así que la
+/// pantalla tiene que mostrar que está trabajando.
+Future<Insignia> subirIconoInsignia(
+  String token,
+  int id,
+  List<int> bytes,
+  String tipo,
+) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id/icono',
+    token: token,
+    metodo: 'POST',
+    bytes: bytes,
+    tipoDeContenido: tipo,
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return _insigniaDesde(cuerpo);
+}
+
+/// DELETE /insignias/:id/icono — le saca la imagen y vuelve al ícono genérico.
+Future<Insignia> quitarIconoInsignia(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/insignias/$id/icono',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa insignia ya no existe.',
+  );
+  return _insigniaDesde(cuerpo);
 }
 
 /// El valor de filtro que pide las piezas sin clasificar.

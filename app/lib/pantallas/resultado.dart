@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../estilo.dart';
 import '../modelos/insignia_visitante.dart';
 import '../modelos/mision.dart';
+import '../widgets/icono_insignia.dart';
 
 /// Cómo terminó la misión (VIS11).
 ///
@@ -203,7 +204,7 @@ class _Insignias extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.hexagon, size: 20, color: AppColors.acento),
+                          IconoInsignia(url: insignia.iconoUrl, tamanio: 34),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(

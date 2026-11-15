@@ -4,6 +4,7 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/insignia.dart';
 import '../../sesion/sesion.dart';
+import '../../widgets/icono_insignia.dart';
 import 'insignia_admin.dart';
 
 /// Las insignias del museo, en orden alfabético (ADM19).
@@ -198,11 +199,9 @@ class _Tarjeta extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.hexagon_outlined,
-                size: 22,
-                color: insignia.activa ? AppColors.acento : AppColors.textoInactivo,
-              ),
+              // Una insignia desactivada se ve apagada, igual que una que el
+              // visitante todavía no ganó.
+              IconoInsignia(url: insignia.iconoUrl, tamanio: 34, ganada: insignia.activa),
               const SizedBox(width: 12),
               Expanded(child: Text(insignia.nombre, style: AppText.serif(size: 17))),
               if (!insignia.activa)

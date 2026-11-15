@@ -1,11 +1,11 @@
 // Reglas de los datos de una insignia (ADM19). Estan en un modulo propio para
 // que crear y editar apliquen exactamente las mismas.
 //
-// La condicion de obtencion no se valida aca: no se carga desde este
-// formulario. Una insignia nace con la condicion vacia, o sea que nadie la
-// puede ganar, y se le pone una regla en ADM20.
-
-import { validarImagen } from './imagen.js';
+// Ni la condicion de obtencion ni el icono se validan aca: ninguno se carga
+// desde este formulario. Una insignia nace con la condicion vacia, o sea que
+// nadie la puede ganar, y se le pone una regla en ADM20. El icono se sube como
+// archivo por su propia ruta (ADM25); si estuviera tambien aca, guardar un
+// cambio de nombre sin mandarlo le borraria la imagen.
 
 const LARGO_MAXIMO_NOMBRE = 120; // igual que la columna VARCHAR(120)
 
@@ -37,7 +37,6 @@ export function validarInsignia(datos) {
   const resultados = {
     nombre: validarNombre(datos.nombre),
     descripcion: validarDescripcion(datos.descripcion),
-    icono_url: validarImagen(datos.icono_url),
   };
 
   const valores = {};

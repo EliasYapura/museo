@@ -4,6 +4,7 @@ import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/insignia_visitante.dart';
 import '../sesion/sesion.dart';
+import '../widgets/icono_insignia.dart';
 import 'registro.dart';
 
 /// Pestaña Insignias: los logros del museo y cuáles ya ganó el visitante
@@ -234,21 +235,7 @@ class _Tarjeta extends StatelessWidget {
         children: [
           // Las que faltan se ven apagadas, no escondidas: el visitante tiene
           // que poder saber qué le falta para ganarlas.
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.fondo,
-              shape: BoxShape.circle,
-              border: Border.all(color: ganada ? AppColors.acento : AppColors.borde),
-            ),
-            child: Icon(
-              ganada ? Icons.hexagon : Icons.hexagon_outlined,
-              size: 22,
-              color: ganada ? AppColors.acento : AppColors.textoInactivo,
-            ),
-          ),
+          IconoInsignia(url: insignia.iconoUrl, ganada: ganada),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { borrarImagen, ErrorDeImagen, subirImagen } from '../almacenamiento.js';
 import { pool } from '../db.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
@@ -65,12 +66,12 @@ insigniasRouter.post('/', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `WITH nueva AS (
-         INSERT INTO insignias (nombre, descripcion, icono_url, condicion)
-         VALUES ($1, $2, $3, '{}'::jsonb)
+         INSERT INTO insignias (nombre, descripcion, condicion)
+         VALUES ($1, $2, '{}'::jsonb)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM nueva i`,
-      [valores.nombre, valores.descripcion, valores.icono_url]
+      [valores.nombre, valores.descripcion]
     );
     return res.status(201).json({ insignia: rows[0] });
   } catch (err) {
@@ -80,10 +81,11 @@ insigniasRouter.post('/', async (req, res) => {
   }
 });
 
-// PUT /insignias/:id — cambia nombre, descripcion e icono.
+// PUT /insignias/:id — cambia el nombre y la descripcion.
 //
-// No toca ni la condicion ni si esta activa: las dos tienen su propia ruta,
-// para que guardar el formulario no cambie sin querer quien puede ganarla.
+// No toca la condicion, ni si esta activa, ni el icono: los tres tienen su
+// propia ruta, para que guardar el formulario no cambie sin querer quien puede
+// ganarla ni le borre la imagen.
 insigniasRouter.put('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
 
@@ -96,12 +98,12 @@ insigniasRouter.put('/:id', async (req, res) => {
     const { rows } = await pool.query(
       `WITH cambiada AS (
          UPDATE insignias
-         SET nombre = $2, descripcion = $3, icono_url = $4
+         SET nombre = $2, descripcion = $3
          WHERE id = $1
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiada i`,
-      [req.params.id, valores.nombre, valores.descripcion, valores.icono_url]
+      [req.params.id, valores.nombre, valores.descripcion]
     );
     if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
     return res.json({ insignia: rows[0] });
@@ -187,4 +189,82 @@ insigniasRouter.delete('/:id', async (req, res) => {
   );
   if (Number(rows[0].borradas) === 0) return res.status(404).json(NO_ENCONTRADA);
   return res.json({ la_tenian: rows[0].la_tenian });
+});
+
+// --- Icono de la insignia (ADM25) -----------------------------------------
+//
+// El archivo llega crudo en el cuerpo, con su Content-Type, y no como
+// multipart. Es una sola imagen y nada mas: armar un multipart para eso
+// obligaria a sumar una dependencia que parsee algo que no necesitamos.
+//
+// Importante: el Content-Type que manda el cliente NO decide nada. Sirve para
+// que express.raw acepte el cuerpo; el tipo real lo reconoce almacenamiento.js
+// mirando los primeros bytes.
+
+// POST /insignias/:id/icono — reemplaza la imagen de la insignia.
+insigniasRouter.post('/:id/icono', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { icono: 'No llegó ninguna imagen' },
+    });
+  }
+
+  // Se busca antes de subir para no dejar un archivo huérfano en Storage si
+  // la insignia no existe, y para quedarse con el ícono viejo y poder
+  // borrarlo después.
+  const previa = await pool.query('SELECT icono_url FROM insignias WHERE id = $1', [req.params.id]);
+  if (!previa.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+
+  let url;
+  try {
+    url = await subirImagen(req.body);
+  } catch (err) {
+    if (err instanceof ErrorDeImagen) {
+      return res.status(400).json({ error: 'Datos inválidos', errores: { icono: err.message } });
+    }
+    throw err;
+  }
+
+  const { rows } = await pool.query(
+    `WITH cambiada AS (
+       UPDATE insignias SET icono_url = $2 WHERE id = $1 RETURNING *
+     )
+     SELECT ${COLUMNAS} FROM cambiada i`,
+    [req.params.id, url]
+  );
+
+  // Recién cuando la nueva quedó guardada se borra la anterior. Al revés, un
+  // fallo entre medio dejaría la insignia apuntando a un archivo que ya no
+  // está. borrarImagen no lanza: es limpieza, no parte de la operación.
+  await borrarImagen(previa.rows[0].icono_url);
+
+  return res.json({ insignia: rows[0] });
+});
+
+// DELETE /insignias/:id/icono — le saca la imagen y vuelve al ícono genérico.
+insigniasRouter.delete('/:id/icono', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  // La consulta devuelve la insignia ya sin ícono, y aparte la dirección que
+  // tenía: sin guardarla, el archivo quedaría para siempre en el bucket sin
+  // que nada lo apunte.
+  const { rows } = await pool.query(
+    `WITH previa AS (
+       SELECT icono_url FROM insignias WHERE id = $1
+     ), cambiada AS (
+       UPDATE insignias SET icono_url = NULL WHERE id = $1 RETURNING *
+     )
+     SELECT ${COLUMNAS}, (SELECT icono_url FROM previa) AS icono_anterior
+     FROM cambiada i`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
+
+  const { icono_anterior: anterior, ...insignia } = rows[0];
+  await borrarImagen(anterior);
+
+  return res.json({ insignia });
 });
