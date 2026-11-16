@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { authRouter } from './routes/auth.js';
 import { categoriasRouter } from './routes/categorias.js';
 import { desafiosDeMisionRouter, desafiosRouter } from './routes/desafios.js';
+import { estadisticasRouter } from './routes/estadisticas.js';
 import { insigniasRouter } from './routes/insignias.js';
 import { misionesRouter } from './routes/misiones.js';
 import { objetosRouter } from './routes/objetos.js';
@@ -76,6 +77,10 @@ app.use('/objetos', objetosRouter);
 app.use('/insignias', insigniasRouter);
 app.use('/salas', salasRouter);
 app.use('/categorias', categoriasRouter);
+// Las estadisticas de uso (ADM22). En su propia direccion y no dentro de
+// /misiones: alla /misiones/estadisticas lo tomaria GET /misiones/:id, que
+// revisa el id primero y responderia 404.
+app.use('/estadisticas', estadisticasRouter);
 
 // Cualquier ruta que no coincidio con las anteriores.
 app.use((req, res) => {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../sesion/sesion.dart';
+import 'admin/estadisticas_admin.dart';
 import 'admin/insignias_admin.dart';
 import 'admin/misiones_admin.dart';
 import 'admin/objetos_admin.dart';
@@ -174,6 +175,11 @@ class _PantallaAdministracionState extends State<PantallaAdministracion> {
                         await _recargar();
                       },
                     ),
+                    const SizedBox(height: 12),
+                    // Las estadísticas (ADM22) no son una cuenta de contenido
+                    // cargado como las de arriba, así que no van con el número
+                    // grande: es otra clase de cosa y conviene que se vea.
+                    const _AccesoEstadisticas(),
                   ],
                 );
               },
@@ -230,6 +236,56 @@ class _Tarjeta extends StatelessWidget {
             ),
             if (alTocar != null)
               const Icon(Icons.chevron_right, color: AppColors.textoSecundario),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Acceso al tablero de estadísticas de uso (ADM22).
+///
+/// No lleva un número grande como las otras tarjetas: esas cuentan cuánto
+/// contenido hay cargado, y esta lleva a ver cómo les va a los visitantes.
+/// Mostrarle un número al costado la haría parecer una más de la lista.
+class _AccesoEstadisticas extends StatelessWidget {
+  const _AccesoEstadisticas();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const PantallaEstadisticas()),
+      ),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.insights_outlined, size: 26, color: AppColors.acento),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Estadísticas de uso',
+                    style: AppText.sans(size: 15, color: AppColors.textoPrimario),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'cuánto se juega cada misión, cuánto tardan y dónde se traban',
+                    style: AppText.sans(size: 12.5),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textoInactivo),
           ],
         ),
       ),

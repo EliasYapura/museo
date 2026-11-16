@@ -7,6 +7,7 @@ import '../modelos/categoria.dart';
 import '../modelos/desafio.dart';
 import '../modelos/desafio_jugable.dart';
 import '../modelos/escaneo.dart';
+import '../modelos/estadisticas.dart';
 import '../modelos/insignia.dart';
 import '../modelos/insignia_visitante.dart';
 import '../modelos/mision.dart';
@@ -1096,4 +1097,49 @@ Future<Insignia> guardarCondicionInsignia(
     mensaje404: 'Esa insignia ya no existe.',
   );
   return _insigniaDesde(cuerpo);
+}
+
+// --- Estadísticas de uso (ADM22) -------------------------------------------
+
+/// GET /estadisticas — el tablero: el resumen del museo y una fila por misión.
+///
+/// Está en su propia dirección y no en /misiones/estadisticas: allá la tomaría
+/// GET /misiones/:id, que revisa el id primero y responde 404.
+Future<({ResumenDeUso resumen, List<UsoDeMision> misiones})> obtenerEstadisticas(
+  String token,
+) async {
+  final cuerpo = await _pedirJson('/estadisticas', token: token);
+  try {
+    return (
+      resumen: ResumenDeUso.desdeJson(cuerpo['resumen'] as Map<String, dynamic>),
+      misiones: (cuerpo['misiones'] as List)
+          .map((json) => UsoDeMision.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
+/// GET /estadisticas/misiones/:id — el detalle de una misión, desafío por
+/// desafío.
+Future<({UsoDeMision mision, List<UsoDeDesafio> desafios})> obtenerEstadisticasDeMision(
+  String token,
+  int id,
+) async {
+  final cuerpo = await _pedirJson(
+    '/estadisticas/misiones/$id',
+    token: token,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  try {
+    return (
+      mision: UsoDeMision.desdeJson(cuerpo['mision'] as Map<String, dynamic>),
+      desafios: (cuerpo['desafios'] as List)
+          .map((json) => UsoDeDesafio.desdeJson(json as Map<String, dynamic>))
+          .toList(),
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
 }
