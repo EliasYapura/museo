@@ -62,6 +62,19 @@ Queda escuchando en `http://localhost:3000`. Para verificar que está viva:
 curl http://localhost:3000/health
 ```
 
+#### Pruebas
+
+```bash
+npm test
+```
+
+Corre las once pruebas de `backend/pruebas/` y resume al final. Necesitan la API
+levantada en otra terminal y el `.env` completo: le hablan a la API por HTTP y
+van contra la base de verdad. Cada una arma sus datos y los borra al terminar.
+
+El detalle de qué cubre cada una, y las dos trampas que hay que conocer antes de
+tocarlas, está en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md).
+
 #### Endpoints
 
 | Método | Ruta | Acceso | Descripción |
