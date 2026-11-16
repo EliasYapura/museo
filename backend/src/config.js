@@ -38,12 +38,11 @@ export const config = {
   supabaseUrl: process.env.SUPABASE_URL.replace(/\/+$/, ''),
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
   jwtExpira: process.env.JWT_EXPIRA || '8h',
-  // Origenes autorizados por CORS: el panel y, si la app del visitante se
-  // corre en el navegador, su servidor de desarrollo. En un emulador o en un
-  // telefono no hace falta: CORS es una regla de los navegadores.
-  // En produccion, las URLs de Vercel.
-  origenesPermitidos: [
-    process.env.PANEL_ORIGIN || 'http://localhost:5173',
-    process.env.APP_ORIGIN || 'http://localhost:5000',
-  ],
+  // Origenes autorizados por CORS: el de la app del visitante cuando se la
+  // corre en el navegador. En un emulador o en un telefono no hace falta,
+  // porque CORS es una regla de los navegadores.
+  //
+  // Antes habia un segundo origen, el del panel web que estaba en Vercel. El
+  // panel se retiro en el Sprint 5, cuando la administracion se mudo a la app.
+  origenesPermitidos: [process.env.APP_ORIGIN || 'http://localhost:5000'],
 };

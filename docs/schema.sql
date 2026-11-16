@@ -197,18 +197,7 @@ COMMENT ON COLUMN insignias.condicion IS
     'Regla evaluada automaticamente. Ej: {"tipo":"misiones_completadas","misiones":[3,4,5]}';
 
 -- ---------------------------------------------------------------------
--- 9. RECOMPENSAS  (historia ADM21)
--- ---------------------------------------------------------------------
-CREATE TABLE recompensas (
-    id          SERIAL        PRIMARY KEY,
-    mision_id   BIGINT        REFERENCES misiones(id) ON DELETE CASCADE,
-    nombre      VARCHAR(120)  NOT NULL,
-    descripcion TEXT,
-    condicion   JSONB         NOT NULL DEFAULT '{}'::JSONB
-);
-
--- ---------------------------------------------------------------------
--- 10. PROGRESO DE MISION  (historias VIS09, VIS11, SIS03)
+-- 9. PROGRESO DE MISION  (historias VIS09, VIS11, SIS03)
 -- ---------------------------------------------------------------------
 CREATE TABLE progreso_misiones (
     id                BIGSERIAL        PRIMARY KEY,
@@ -237,7 +226,7 @@ COMMENT ON INDEX uq_mision_en_curso IS
     'Un visitante no puede tener la misma mision iniciada dos veces en paralelo.';
 
 -- ---------------------------------------------------------------------
--- 11. PROGRESO DE DESAFIO  (historias VIS08, SIS02, SIS03)
+-- 10. PROGRESO DE DESAFIO  (historias VIS08, SIS02, SIS03)
 -- ---------------------------------------------------------------------
 CREATE TABLE progreso_desafios (
     id                    BIGSERIAL    PRIMARY KEY,
@@ -259,7 +248,7 @@ CREATE INDEX idx_pd_progreso ON progreso_desafios(progreso_mision_id);
 CREATE INDEX idx_pd_desafio  ON progreso_desafios(desafio_id);
 
 -- ---------------------------------------------------------------------
--- 12. INSIGNIAS OBTENIDAS  (historia VIS10)
+-- 11. INSIGNIAS OBTENIDAS  (historia VIS10)
 -- ---------------------------------------------------------------------
 CREATE TABLE usuarios_insignias (
     usuario_id   BIGINT       NOT NULL REFERENCES usuarios(id)  ON DELETE CASCADE,
@@ -269,7 +258,7 @@ CREATE TABLE usuarios_insignias (
 );
 
 -- ---------------------------------------------------------------------
--- 13. EVENTOS  (historias SIS02 y ADM22 — analitica)
+-- 12. EVENTOS  (historias SIS02 y ADM22 — analitica)
 -- ---------------------------------------------------------------------
 CREATE TABLE eventos (
     id                  BIGSERIAL    PRIMARY KEY,
@@ -289,7 +278,7 @@ COMMENT ON TABLE eventos IS
     'Bitacora de interacciones. Alimenta las estadisticas de uso del panel (ADM22).';
 
 -- ---------------------------------------------------------------------
--- 14. VALORACIONES  (historia VIS14)
+-- 13. VALORACIONES  (historia VIS14)
 -- ---------------------------------------------------------------------
 -- Lo que el visitante opina de una mision, de 1 a 5 estrellas, al
 -- terminarla. El administrador las consulta en ADM26.
@@ -335,31 +324,6 @@ CREATE TRIGGER trg_misiones_actualizada
     FOR EACH ROW EXECUTE FUNCTION fn_actualizar_timestamp();
 
 -- ---------------------------------------------------------------------
--- Vista de apoyo para el modulo de analitica (ADM22)
--- ---------------------------------------------------------------------
--- Nota: las pistas se agregan en una subconsulta aparte. Si se unieran
--- progreso_misiones y progreso_desafios en el mismo FROM, cada participacion
--- se repetiria una vez por desafio e inflaria los conteos.
-CREATE VIEW v_estadisticas_misiones AS
-SELECT
-    m.id                                                        AS mision_id,
-    m.nombre                                                    AS mision,
-    COUNT(pm.id)                                                AS veces_iniciada,
-    COUNT(pm.id) FILTER (WHERE pm.estado = 'completada')        AS veces_completada,
-    ROUND(AVG(EXTRACT(EPOCH FROM (pm.finalizada_en - pm.iniciada_en)) / 60.0)
-          FILTER (WHERE pm.estado = 'completada')::NUMERIC, 1)  AS minutos_promedio,
-    COALESCE(p.pistas_usadas, 0)                                AS pistas_usadas
-FROM misiones m
-LEFT JOIN progreso_misiones pm ON pm.mision_id = m.id
-LEFT JOIN (
-    SELECT pm2.mision_id, SUM(pd.pistas_usadas) AS pistas_usadas
-    FROM progreso_misiones pm2
-    JOIN progreso_desafios pd ON pd.progreso_mision_id = pm2.id
-    GROUP BY pm2.mision_id
-) p ON p.mision_id = m.id
-GROUP BY m.id, m.nombre, p.pistas_usadas;
-
--- ---------------------------------------------------------------------
 -- Seguridad: cerrar el acceso publico a traves de la API REST
 -- ---------------------------------------------------------------------
 -- Supabase expone automaticamente el esquema public como API REST. Sin Row
@@ -381,16 +345,11 @@ ALTER TABLE misiones           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE desafios           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pistas             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE insignias          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recompensas        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE progreso_misiones  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE progreso_desafios  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios_insignias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE eventos            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE valoraciones       ENABLE ROW LEVEL SECURITY;
-
--- La vista corria con los permisos de quien la creo, salteando el RLS de las
--- tablas que consulta. Con security_invoker usa los permisos de quien consulta.
-ALTER VIEW v_estadisticas_misiones SET (security_invoker = on);
 
 -- Sin search_path fijo, un atacante puede anteponer un esquema propio para que
 -- la funcion resuelva NOW() a codigo suyo. Con search_path vacio solo resuelve

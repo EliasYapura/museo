@@ -29,9 +29,6 @@ services:
       # desarrollo y de al menos 32 caracteres.
       - key: JWT_SECRET
         sync: false
-      # Direccion del panel desplegado, para CORS.
-      - key: PANEL_ORIGIN
-        sync: false
       # Origen de la app del visitante si se la corre en el navegador.
       - key: APP_ORIGIN
         sync: false

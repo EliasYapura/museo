@@ -136,11 +136,6 @@ INSERT INTO insignias (nombre, descripcion, condicion) VALUES
 ('Ojo de halcón', 'Resolviste 10 desafíos de escaneo sin errores.',
  '{"tipo":"escaneos_sin_error","cantidad":10}');
 
--- ---------- Recompensas ----------
-INSERT INTO recompensas (mision_id, nombre, descripcion, condicion) VALUES
-(2, 'Ficha del Diplodocus', 'Ficha digital descargable con la historia de la pieza.',
- '{"tipo":"completar_mision"}');
-
 -- ---------- Progreso de ejemplo ----------
 INSERT INTO progreso_misiones (usuario_id, mision_id, estado, puntos_obtenidos, iniciada_en, finalizada_en)
 VALUES (2, 2, 'completada', 27, NOW() - INTERVAL '40 minutes', NOW() - INTERVAL '22 minutes');

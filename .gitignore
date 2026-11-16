@@ -36,3 +36,7 @@ desktop.ini
 # son de la maquina de cada uno, no del proyecto.
 CLAUDE.md
 .claude/
+
+# El panel web se retiro en el Sprint 7: la administracion vive en la app desde
+# el Sprint 5. El codigo sigue en la historia, en el tag sprint-6-entrega.
+panel/

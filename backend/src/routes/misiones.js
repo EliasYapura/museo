@@ -216,9 +216,9 @@ misionesRouter.patch('/:id/activa', async (req, res) => {
   });
 });
 
-// Es una baja logica: la mision deja de verse en el panel, pero sus desafios,
-// sus recompensas y el avance de los visitantes siguen en la base. Borrarla
-// de verdad se los llevaria a todos por delante.
+// Es una baja logica: la mision deja de verse en la administracion, pero sus
+// desafios, sus valoraciones y el avance de los visitantes siguen en la base.
+// Borrarla de verdad se los llevaria a todos por delante.
 //
 // Va en una ruta aparte y no en el PUT para que no se archive sin querer al
 // guardar el formulario. Archivar tambien desactiva: una mision archivada no
