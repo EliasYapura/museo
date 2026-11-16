@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/insignia_visitante.dart';
 import '../modelos/mision.dart';
+import '../sesion/sesion.dart';
 import '../widgets/icono_insignia.dart';
 
 /// Cómo terminó la misión (VIS11).
@@ -134,6 +136,8 @@ class PantallaResultado extends StatelessWidget {
 
             _Insignias(pedido: insignias),
 
+            _Valoracion(mision: mision),
+
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
@@ -232,6 +236,164 @@ class _Insignias extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Las estrellas con las que el visitante califica la misión (VIS14).
+///
+/// Sólo aparece con la sesión iniciada. Sin cuenta no se muestra nada en lugar
+/// de estrellas apagadas con un cartel: un control que no se puede usar invita
+/// a tocarlo y después explica que no, y acá la misión ya terminó bien.
+///
+/// Se manda al tocar, sin botón de confirmar: es una sola decisión y de un
+/// toque, y un "enviar" al lado de cinco estrellas sólo agrega un paso.
+class _Valoracion extends StatefulWidget {
+  final Mision mision;
+
+  const _Valoracion({required this.mision});
+
+  @override
+  State<_Valoracion> createState() => _ValoracionState();
+}
+
+class _ValoracionState extends State<_Valoracion> {
+  /// Lo que está marcado en la pantalla. Es lo elegido mientras viaja el
+  /// pedido, y lo que confirmó el servidor cuando contesta.
+  int? _estrellas;
+
+  bool _enviando = false;
+  bool _guardada = false;
+  String _error = '';
+
+  Future<void> _calificar(int estrellas, String token) async {
+    setState(() {
+      _estrellas = estrellas;
+      _enviando = true;
+      _error = '';
+    });
+    try {
+      final guardada = await calificarMision(token, widget.mision.id, estrellas);
+      if (!mounted) return;
+      setState(() {
+        // La que vale es la que devolvió el servidor, no la que tocamos.
+        _estrellas = guardada;
+        _guardada = true;
+      });
+    } on ErrorApi catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.mensaje;
+        // Se vuelve atrás lo marcado: dejar las estrellas puestas después de
+        // un fallo haría creer que quedó guardada.
+        if (!_guardada) _estrellas = null;
+      });
+    } catch (error, pila) {
+      debugPrint('Fallo al calificar la misión: $error\n$pila');
+      if (!mounted) return;
+      setState(() {
+        _error = 'No se pudo enviar la calificación.';
+        if (!_guardada) _estrellas = null;
+      });
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final token = ProveedorSesion.de(context).token;
+    if (token == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Qué te pareció la misión?',
+              style: AppText.sans(size: 14.5, peso: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Le sirve al museo para saber cuáles funcionan mejor.',
+              style: AppText.sans(size: 12.5),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                for (var estrella = 1; estrella <= 5; estrella++)
+                  _Estrella(
+                    numero: estrella,
+                    marcada: _estrellas != null && estrella <= _estrellas!,
+                    // Mientras viaja el pedido no se puede volver a tocar: dos
+                    // toques seguidos dejarían la pantalla mostrando una
+                    // puntuación y la base guardando la otra.
+                    alTocar: _enviando ? null : () => _calificar(estrella, token),
+                  ),
+              ],
+            ),
+            if (_guardada || _error.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              // liveRegion: el lector de pantalla lo anuncia solo al aparecer,
+              // que es lo que hace que el resultado del toque se note sin ver
+              // las estrellas.
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _error.isNotEmpty
+                      ? _error
+                      : '¡Gracias! Podés cambiarla tocando otra estrella.',
+                  style: AppText.sans(
+                    size: 13,
+                    color: _error.isNotEmpty ? AppColors.error : AppColors.facil,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Una de las cinco estrellas.
+class _Estrella extends StatelessWidget {
+  final int numero;
+  final bool marcada;
+  final VoidCallback? alTocar;
+
+  const _Estrella({required this.numero, required this.marcada, required this.alTocar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      // Sin etiqueta el lector de pantalla no tiene nada que decir de un ícono.
+      // Nombrar el número es lo que permite calificar sin ver la fila.
+      label: numero == 1 ? 'Calificar con 1 estrella' : 'Calificar con $numero estrellas',
+      selected: marcada,
+      excludeSemantics: true,
+      child: IconButton(
+        onPressed: alTocar,
+        // 44 es el mínimo táctil que venimos usando (VIS13): una estrella de
+        // 24 píxeles sin esto queda más chica que lo que se puede tocar bien.
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          marcada ? Icons.star : Icons.star_border,
+          size: 30,
+          color: marcada ? AppColors.acento : AppColors.textoInactivo,
+        ),
+      ),
     );
   }
 }

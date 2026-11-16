@@ -951,6 +951,30 @@ Future<List<InsigniaVisitante>> avisarMisionCompletada(
   }
 }
 
+/// POST /publico/misiones/:id/valoracion — califica la misión (VIS14).
+///
+/// Es la única ruta pública que exige cuenta: sin usuario no hay con qué
+/// impedir que la misma persona califique muchas veces, ni con qué comprobar
+/// que jugó la misión. El servidor también exige haberla terminado, así que
+/// esto no se puede mandar antes de llegar a la pantalla de resultado.
+///
+/// Devuelve la puntuación que quedó guardada. Volver a calificar corrige la
+/// anterior en vez de sumar otra.
+Future<int> calificarMision(String token, int misionId, int estrellas) async {
+  final cuerpo = await _pedirJson(
+    '/publico/misiones/$misionId/valoracion',
+    token: token,
+    metodo: 'POST',
+    cuerpo: {'puntuacion': estrellas},
+    mensaje404: 'Esa misión ya no está disponible.',
+  );
+  try {
+    return (cuerpo['valoracion'] as Map<String, dynamic>)['puntuacion'] as int;
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
+}
+
 /// GET /publico/insignias — las insignias que se pueden ganar (VIS10).
 ///
 /// Con [token] cada una dice además si el visitante ya la tiene. Sin token se

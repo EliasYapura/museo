@@ -588,3 +588,81 @@ publicoRouter.post('/misiones/:id/completada', async (req, res) => {
   // de ganar, que puede ser una lista vacia.
   return res.json({ insignias });
 });
+
+// POST /publico/misiones/:id/valoracion — el visitante califica la mision que
+// acaba de terminar (VIS14).
+//
+// Es la unica ruta de este router que exige cuenta, y es a proposito:
+//
+// - Sin usuario no hay forma de impedir que la misma persona califique
+//   veinte veces y mueva el promedio sola. La tabla lo impide con un UNIQUE
+//   por (mision, usuario), y eso necesita un usuario.
+// - Tampoco habria con que comprobar que jugo la mision.
+//
+// Lo que ve el administrador sale de aca, asi que un promedio que cualquiera
+// pueda inflar no sirve para decidir nada.
+publicoRouter.post('/misiones/:id/valoracion', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_DISPONIBLE);
+
+  if (!req.usuario) {
+    return res.status(401).json({
+      error: 'Para calificar una misión hay que tener una cuenta',
+    });
+  }
+
+  const { puntuacion } = req.body ?? {};
+  // Enteros de 1 a 5 y nada mas: "4" (texto) o 4.5 no son estrellas. La base
+  // tiene el mismo CHECK, pero el mensaje bueno sale de aca.
+  if (
+    typeof puntuacion !== 'number' ||
+    !Number.isInteger(puntuacion) ||
+    puntuacion < 1 ||
+    puntuacion > 5
+  ) {
+    return res.status(400).json({
+      error: 'La calificación tiene que ser un número entero de 1 a 5 estrellas',
+    });
+  }
+
+  // Misma comprobacion que el resto del router: no se califica una mision que
+  // el museo bajo, igual que no se habria podido empezar.
+  const mision = await pool.query(
+    'SELECT 1 FROM misiones WHERE id = $1 AND activa = TRUE AND archivada = FALSE',
+    [req.params.id]
+  );
+  if (!mision.rows[0]) return res.status(404).json(NO_DISPONIBLE);
+
+  // Solo califica quien la termino, y eso lo dice el progreso guardado y no la
+  // app: es el mismo criterio que con los puntos y la dificultad, el que manda
+  // es el servidor (SIS03). La condicion va dentro del INSERT en vez de un
+  // SELECT aparte para no escribir en base a un dato leido un instante antes.
+  //
+  // EXISTS y no "la ultima vuelta": alcanza con haberla completado alguna vez.
+  // Quien la termino y la volvio a empezar sigue teniendo derecho a opinar.
+  //
+  // ON CONFLICT porque el UNIQUE deja una sola valoracion por visitante:
+  // volver a calificar corrige la anterior en lugar de fallar. creada_en no se
+  // toca, asi que sigue siendo cuando califico la mision por primera vez.
+  const { rows } = await pool.query(
+    `INSERT INTO valoraciones (mision_id, usuario_id, puntuacion)
+     SELECT $1, $2, $3
+      WHERE EXISTS (
+        SELECT 1 FROM progreso_misiones
+         WHERE mision_id = $1 AND usuario_id = $2 AND estado = 'completada'
+      )
+     ON CONFLICT (mision_id, usuario_id)
+       DO UPDATE SET puntuacion = EXCLUDED.puntuacion
+     RETURNING puntuacion, creada_en`,
+    [req.params.id, req.usuario.id, puntuacion]
+  );
+
+  // Sin fila, el EXISTS no se cumplio: la mision existe y esta publicada, pero
+  // este visitante no la termino nunca.
+  if (!rows[0]) {
+    return res.status(409).json({
+      error: 'Para calificar una misión hay que terminarla primero',
+    });
+  }
+
+  return res.json({ valoracion: rows[0] });
+});

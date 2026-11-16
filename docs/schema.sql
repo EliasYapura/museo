@@ -289,6 +289,37 @@ COMMENT ON TABLE eventos IS
     'Bitacora de interacciones. Alimenta las estadisticas de uso del panel (ADM22).';
 
 -- ---------------------------------------------------------------------
+-- 14. VALORACIONES  (historia VIS14)
+-- ---------------------------------------------------------------------
+-- Lo que el visitante opina de una mision, de 1 a 5 estrellas, al
+-- terminarla. El administrador las consulta en ADM26.
+--
+-- El UNIQUE es la regla principal: una valoracion por visitante y por
+-- mision. Sin el, quien repite una mision cinco veces mueve el promedio
+-- solo, y el promedio es justamente lo que se usa para decidir. Volver a
+-- calificar corrige la anterior (ON CONFLICT en la API), asi que
+-- creada_en es cuando califico por primera vez.
+--
+-- usuario_id es obligatorio: sin cuenta no hay con que impedir que la
+-- misma persona vote muchas veces, ni con que comprobar que jugo. Es la
+-- unica cosa de la app del visitante que pide tener cuenta.
+CREATE TABLE valoraciones (
+    id          BIGSERIAL    PRIMARY KEY,
+    mision_id   BIGINT       NOT NULL
+                REFERENCES misiones(id) ON DELETE CASCADE,
+    usuario_id  BIGINT       NOT NULL
+                REFERENCES usuarios(id) ON DELETE CASCADE,
+    puntuacion  SMALLINT     NOT NULL CHECK (puntuacion BETWEEN 1 AND 5),
+    creada_en   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_valoracion UNIQUE (mision_id, usuario_id)
+);
+
+-- Sin indice aparte por mision_id, a diferencia de las otras tablas hijas:
+-- el UNIQUE ya crea uno sobre (mision_id, usuario_id), y como mision_id es
+-- su primera columna, buscar o agrupar por mision lo usa igual. Uno mas
+-- seria la misma cosa dos veces.
+
+-- ---------------------------------------------------------------------
 -- Trigger: mantener actualizada la fecha de modificacion de misiones
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_actualizar_timestamp()
@@ -355,6 +386,7 @@ ALTER TABLE progreso_misiones  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE progreso_desafios  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios_insignias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE eventos            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE valoraciones       ENABLE ROW LEVEL SECURITY;
 
 -- La vista corria con los permisos de quien la creo, salteando el RLS de las
 -- tablas que consulta. Con security_invoker usa los permisos de quien consulta.
