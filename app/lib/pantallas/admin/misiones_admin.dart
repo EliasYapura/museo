@@ -229,6 +229,29 @@ class _Tarjeta extends StatelessWidget {
                 ),
               ],
             ),
+            // Lo que opinaron los visitantes (ADM26). En su propia línea y
+            // sólo si tiene alguna: la de arriba ya está llena, y una misión
+            // sin calificar no necesita que se le aclare.
+            if (mision.valoraciones > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.star, size: 14, color: AppColors.acento),
+                  const SizedBox(width: 5),
+                  Text(
+                    mision.promedioEnTexto,
+                    style: AppText.sans(size: 12.5, peso: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    mision.valoraciones == 1
+                        ? '1 valoración'
+                        : '${mision.valoraciones} valoraciones',
+                    style: AppText.sans(size: 12.5),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

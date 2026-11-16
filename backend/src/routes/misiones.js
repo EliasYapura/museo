@@ -18,8 +18,23 @@ misionesRouter.use(verificarToken, requerirRol('administrador'));
 // el boton va habilitado. count() da bigint, que node-pg entrega como texto.
 const CUENTA_DESAFIOS =
   '(SELECT count(*) FROM desafios d WHERE d.mision_id = misiones.id)::int AS desafios';
+
+// Lo que opinaron los visitantes (ADM26). Van por subconsulta como la cuenta
+// de desafios, y no con un JOIN: con JOIN habria que agrupar por todas las
+// columnas de la mision, y el promedio se mezclaria con el conteo de desafios.
+//
+// avg() devuelve numeric, que node-pg entrega como texto para no perder
+// precision; el ::float8 lo vuelve un numero en el JSON. Sin valoraciones da
+// NULL, que es lo correcto: cero seria "la calificaron mal", y no es lo mismo
+// que "todavia no la califico nadie".
+const VALORACIONES = `(SELECT count(*) FROM valoraciones v WHERE v.mision_id = misiones.id)::int
+                        AS valoraciones,
+                      (SELECT round(avg(v.puntuacion), 2) FROM valoraciones v
+                        WHERE v.mision_id = misiones.id)::float8 AS valoracion_promedio`;
+
 const COLUMNAS = `id, nombre, descripcion, duracion_estimada, imagen_url, dificultad,
-                  activa, creada_por, creada_en, actualizada_en, ${CUENTA_DESAFIOS}`;
+                  activa, creada_por, creada_en, actualizada_en, ${CUENTA_DESAFIOS},
+                  ${VALORACIONES}`;
 
 const NO_ENCONTRADA = { error: 'La misión no existe' };
 
@@ -29,7 +44,7 @@ const NO_ENCONTRADA = { error: 'La misión no existe' };
 misionesRouter.get('/', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, nombre, duracion_estimada, dificultad, activa, creada_en, actualizada_en,
-            ${CUENTA_DESAFIOS}
+            ${CUENTA_DESAFIOS}, ${VALORACIONES}
      FROM misiones
      WHERE archivada = FALSE
      ORDER BY actualizada_en DESC, id DESC`
@@ -37,12 +52,30 @@ misionesRouter.get('/', async (req, res) => {
   return res.json({ misiones: rows });
 });
 
+// Como se reparten las estrellas (ADM26): cuantos pusieron 1, cuantos 2, y asi
+// hasta 5. Solo va en el detalle; en el listado alcanza con el promedio.
+//
+// Un promedio de 3 no significa lo mismo si todos pusieron 3 que si la mitad
+// puso 5 y la otra mitad 1, y esa diferencia es la que dice si hay que revisar
+// la mision.
+//
+// Sale de generate_series y no de un GROUP BY para que siempre vengan los
+// cinco numeros en orden: con GROUP BY faltarian las estrellas que nadie
+// eligio y la app tendria que completar los huecos.
+const REPARTO = `(SELECT jsonb_agg(c.cuantas ORDER BY c.estrella)
+                    FROM (SELECT e.estrella,
+                                 (SELECT count(*)::int FROM valoraciones v
+                                   WHERE v.mision_id = misiones.id
+                                     AND v.puntuacion = e.estrella) AS cuantas
+                            FROM generate_series(1, 5) AS e(estrella)) c)
+                  AS reparto_valoraciones`;
+
 // GET /misiones/:id — datos de una mision, para precargar la edicion (ADM05).
 misionesRouter.get('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
 
   const { rows } = await pool.query(
-    `SELECT ${COLUMNAS} FROM misiones WHERE id = $1 AND archivada = FALSE`,
+    `SELECT ${COLUMNAS}, ${REPARTO} FROM misiones WHERE id = $1 AND archivada = FALSE`,
     [req.params.id]
   );
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);

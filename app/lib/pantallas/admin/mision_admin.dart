@@ -342,6 +342,8 @@ class _PantallaMisionAdminState extends State<PantallaMisionAdmin> {
                             alTocar: () => _abrirDesafios(mision),
                           ),
                           const SizedBox(height: 12),
+                          _TarjetaValoraciones(mision: mision),
+                          const SizedBox(height: 12),
                           _SeccionEstado(
                             mision: mision,
                             ocupado: _ocupado,
@@ -578,6 +580,160 @@ class _ErrorCargando extends StatelessWidget {
               child: Text(
                 'Reintentar',
                 style: AppText.sans(size: 14, color: AppColors.acento, peso: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Lo que opinaron los visitantes de la misión (ADM26).
+///
+/// Muestra el promedio, cuántos la calificaron y cómo se reparten las
+/// estrellas. El reparto importa tanto como el promedio: un 3 de acuerdo
+/// general y un 3 de mitad encantada y mitad decepcionada piden cosas
+/// distintas, y el promedio solo no los distingue.
+///
+/// No dice quién calificó qué. Con estrellas solas no hay nada que mostrar por
+/// persona, y una lista de nombres con su puntaje haría mirar al visitante en
+/// vez de a la misión.
+class _TarjetaValoraciones extends StatelessWidget {
+  final MisionAdmin mision;
+
+  const _TarjetaValoraciones({required this.mision});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.superficie,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borde),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Valoraciones', style: AppText.sans(size: 13.5, peso: FontWeight.w700)),
+          const SizedBox(height: 4),
+          if (mision.valoraciones == 0)
+            Text(
+              mision.activa
+                  ? 'Todavía nadie la calificó.'
+                  : 'Todavía nadie la calificó: sólo pueden hacerlo los visitantes que la terminan, y esta misión no está publicada.',
+              style: AppText.sans(size: 13),
+            )
+          else
+            _conValoraciones(),
+        ],
+      ),
+    );
+  }
+
+  Widget _conValoraciones() {
+    // El total se saca del reparto y no de mision.valoraciones: las barras se
+    // dibujan contra lo que suman ellas mismas, así que si por lo que sea los
+    // dos números no coincidieran, ninguna barra pasaría del largo del cuadro.
+    final total = mision.reparto.fold(0, (suma, n) => suma + n);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Agrupado para el lector de pantalla: leer "4,0", "estrella",
+            // "5 valoraciones" por separado no se entiende.
+            Semantics(
+              label: 'Promedio ${mision.promedioEnTexto} de 5 estrellas, '
+                  '${mision.valoraciones} ${mision.valoraciones == 1 ? 'valoración' : 'valoraciones'}',
+              excludeSemantics: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(mision.promedioEnTexto, style: AppText.serif(size: 30)),
+                  const SizedBox(width: 4),
+                  Text('de 5', style: AppText.sans(size: 13)),
+                  const SizedBox(width: 10),
+                  const Icon(Icons.star, size: 18, color: AppColors.acento),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Text(
+              mision.valoraciones == 1 ? '1 valoración' : '${mision.valoraciones} valoraciones',
+              style: AppText.sans(size: 12.5),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // De 5 a 1, como se leen estas listas en todas partes.
+        for (var estrellas = 5; estrellas >= 1; estrellas--)
+          _Barra(
+            estrellas: estrellas,
+            cuantas: estrellas <= mision.reparto.length ? mision.reparto[estrellas - 1] : 0,
+            total: total,
+          ),
+      ],
+    );
+  }
+}
+
+/// Una fila del reparto: cuántos pusieron tantas estrellas.
+class _Barra extends StatelessWidget {
+  final int estrellas;
+  final int cuantas;
+  final int total;
+
+  const _Barra({required this.estrellas, required this.cuantas, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final porcion = total == 0 ? 0.0 : cuantas / total;
+
+    return Semantics(
+      label: '$estrellas ${estrellas == 1 ? 'estrella' : 'estrellas'}: '
+          '$cuantas ${cuantas == 1 ? 'visitante' : 'visitantes'}',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 12,
+              child: Text(
+                '$estrellas',
+                textAlign: TextAlign.right,
+                style: AppText.sans(size: 12.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: porcion,
+                  minHeight: 8,
+                  backgroundColor: AppColors.fondo,
+                  // El color no es lo único que distingue las barras: al lado
+                  // de cada una está el número (VIS13).
+                  valueColor: const AlwaysStoppedAnimation(AppColors.acento),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 22,
+              child: Text(
+                '$cuantas',
+                textAlign: TextAlign.right,
+                style: AppText.sans(
+                  size: 12.5,
+                  color: cuantas == 0 ? AppColors.textoInactivo : AppColors.textoSecundario,
+                ),
               ),
             ),
           ],
