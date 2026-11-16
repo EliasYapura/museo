@@ -35,9 +35,9 @@ app.use(cors({ origin: config.origenesPermitidos }));
 app.use(express.json());
 
 // Las imágenes que se suben llegan como bytes y no como JSON: el ícono de una
-// insignia, la portada de una misión (ADM25). Se declara ruta por
-// ruta, y con los tipos acotados, para que ninguna otra pueda recibir un
-// cuerpo binario sin querer.
+// insignia, la portada de una misión y la foto de una pieza (ADM25).
+// Se declara ruta por ruta, y con los tipos acotados, para que ninguna otra
+// pueda recibir un cuerpo binario sin querer.
 //
 // El límite acá es el del protocolo: deja pasar lo que no es absurdo y
 // almacenamiento.js aplica el de verdad, mirando el contenido. Sin este tope,
@@ -50,6 +50,7 @@ const cuerpoDeImagen = express.raw({
 
 app.use('/insignias/:id/icono', cuerpoDeImagen);
 app.use('/misiones/:id/imagen', cuerpoDeImagen);
+app.use('/objetos/:id/imagen', cuerpoDeImagen);
 
 // Endpoint de diagnostico: sirve para confirmar que la API esta viva.
 // No consulta la base; responde aunque la base este caida.

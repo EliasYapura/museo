@@ -269,7 +269,8 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
   // El JOIN con misiones no es decorativo: sin el, el id de un desafio suelto
   // dejaria jugar una mision que el museo despublico o archivo.
   const { rows } = await pool.query(
-    `SELECT d.tipo, d.puntos, d.objeto_id, o.codigo, o.nombre AS pieza, o.dato_clave
+    `SELECT d.tipo, d.puntos, d.objeto_id, o.codigo, o.nombre AS pieza, o.dato_clave,
+            o.imagen_url
        FROM desafios d
        JOIN misiones m ON m.id = d.mision_id
        LEFT JOIN objetos o ON o.id = d.objeto_id
@@ -351,6 +352,10 @@ publicoRouter.post('/desafios/:id/escaneo', async (req, res) => {
     // Lo que el visitante se gana por llegar hasta la vitrina, y con lo que
     // despues responde la pregunta si el desafio tiene una.
     dato_clave: desafio.dato_clave,
+    // La foto de la pieza (ADM25). Va solo en la respuesta correcta: en un
+    // escaneo equivocado no se dice ni que pieza era, mucho menos se la
+    // muestra, porque en la busqueda guiada seria darle la respuesta.
+    imagen_url: desafio.imagen_url,
     resuelto: sinPregunta,
     puntos,
   });

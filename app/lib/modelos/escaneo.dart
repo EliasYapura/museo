@@ -16,6 +16,11 @@ class ResultadoEscaneo {
   /// información con la que se responde.
   final String? datoClave;
 
+  /// La foto de la pieza, si el museo le cargó una (ADM25). Llega sólo cuando
+  /// el escaneo fue el correcto: en uno equivocado el servidor no dice ni qué
+  /// pieza era.
+  final String? imagenUrl;
+
   /// Si el desafío queda terminado con el escaneo. Pasa en los de escaneo y
   /// búsqueda guiada, que no tienen nada que contestar.
   final bool resuelto;
@@ -28,6 +33,7 @@ class ResultadoEscaneo {
     required this.correcto,
     required this.pieza,
     required this.datoClave,
+    required this.imagenUrl,
     required this.resuelto,
     required this.puntos,
   });
@@ -37,6 +43,7 @@ class ResultadoEscaneo {
       correcto: json['correcto'] as bool? ?? false,
       pieza: json['pieza'] as String?,
       datoClave: json['dato_clave'] as String?,
+      imagenUrl: json['imagen_url'] as String?,
       resuelto: json['resuelto'] as bool? ?? false,
       puntos: json['puntos'] as int? ?? 0,
     );

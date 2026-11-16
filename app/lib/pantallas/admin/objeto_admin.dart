@@ -67,6 +67,21 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
     return resultado.modificado ? 'Cambios guardados.' : 'No había cambios para guardar.';
   }
 
+  /// La pieza que devolvió la API después de subir o quitar la foto (ADM25).
+  ///
+  /// La foto no pasa por el botón de guardar, así que sin esto la pantalla se
+  /// quedaba con la pieza que había traído el listado: al volver y entrar de
+  /// nuevo, el formulario se armaba con la copia vieja y la foto parecía no
+  /// haberse guardado, aunque estuviera en la base.
+  ///
+  /// Marcar _huboCambios es la otra mitad: es lo que hace que el listado
+  /// recargue al salir, y que la próxima vez que se abra la pieza venga con la
+  /// imagen puesta.
+  void _registrarImagen(Objeto actualizado) {
+    _huboCambios = true;
+    if (mounted) setState(() => _actualizado = actualizado);
+  }
+
   /// Da de baja o reactiva la pieza.
   Future<Objeto> _cambiarEstado({required bool activo}) async {
     final sesion = ProveedorSesion.de(context);
@@ -151,8 +166,11 @@ class _PantallaObjetoAdminState extends State<PantallaObjetoAdmin> {
                     ),
                     const SizedBox(height: 20),
                     FormularioObjeto(
-                      objeto: widget.objeto,
+                      // _pieza y no widget.objeto: es la versión más nueva que
+                      // se conoce, y la que trajo el listado puede estar vieja.
+                      objeto: _pieza,
                       alGuardar: _guardar,
+                      alCambiarImagen: _registrarImagen,
                       textoBoton: _esAlta ? 'Cargar pieza' : 'Guardar cambios',
                     ),
                     // El identificador va aparte del formulario y sólo al

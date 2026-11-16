@@ -5,7 +5,9 @@
 // La existencia de la sala no se revisa aca: la controla la base con la
 // clave foranea, y la ruta traduce ese error a un mensaje en el campo sala.
 
-import { validarImagen } from './imagen.js';
+// La foto no se valida aca: ya no se manda como direccion, se sube como
+// archivo a POST /objetos/:id/imagen (ADM25). Dejarla seria peor que inutil
+// —si el formulario guardara sin mandarla, le borraria la foto a la pieza—.
 
 const LARGO_MAXIMO_NOMBRE = 200; // igual que la columna VARCHAR(200)
 
@@ -75,7 +77,6 @@ export function validarObjeto(datos) {
     categoria_id: validarCategoria(datos.categoria_id),
     dato_clave: validarTextoObligatorio(datos.dato_clave, 'El dato clave es obligatorio'),
     descripcion: validarTextoOpcional(datos.descripcion, 'La descripción debe ser un texto'),
-    imagen_url: validarImagen(datos.imagen_url),
     tipo_identificador: validarTipoIdentificador(datos.tipo_identificador),
   };
 

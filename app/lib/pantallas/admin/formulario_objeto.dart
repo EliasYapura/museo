@@ -6,6 +6,7 @@ import '../../modelos/objeto.dart';
 import '../../modelos/categoria.dart';
 import '../../modelos/sala.dart';
 import '../../sesion/sesion.dart';
+import '../../widgets/campo_de_imagen.dart';
 import '../../widgets/formulario.dart';
 
 /// Las mismas reglas que aplica la API, en backend/src/validaciones/objeto.js.
@@ -23,6 +24,12 @@ class FormularioObjeto extends StatefulWidget {
   /// por campo, el formulario los reparte en sus campos.
   final Future<String?> Function(Map<String, dynamic> datos) alGuardar;
 
+  /// Avisa con la pieza que devolvió la API al subir o quitar la foto (ADM25).
+  ///
+  /// La imagen se sube en el momento y no al guardar, así que es el único modo
+  /// que tiene la pantalla de enterarse de que la pieza cambió.
+  final ValueChanged<Objeto>? alCambiarImagen;
+
   final String textoBoton;
 
   const FormularioObjeto({
@@ -30,6 +37,7 @@ class FormularioObjeto extends StatefulWidget {
     required this.objeto,
     required this.alGuardar,
     required this.textoBoton,
+    this.alCambiarImagen,
   });
 
   @override
@@ -42,7 +50,11 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
   late final TextEditingController _nombre;
   late final TextEditingController _datoClave;
   late final TextEditingController _descripcion;
-  late final TextEditingController _imagen;
+
+  /// La foto que tiene puesta ahora (ADM25). Se guarda en el estado y no se lee
+  /// de widget.objeto porque cambia sin salir de la pantalla: subir o quitar la
+  /// imagen es un pedido aparte del botón de guardar.
+  String? _imagenUrl;
 
   int? _salaId;
 
@@ -72,7 +84,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
     _nombre = TextEditingController(text: o?.nombre ?? '');
     _datoClave = TextEditingController(text: o?.datoClave ?? '');
     _descripcion = TextEditingController(text: o?.descripcion ?? '');
-    _imagen = TextEditingController(text: o?.imagenUrl ?? '');
+    _imagenUrl = o?.imagenUrl;
     _salaId = o?.salaId;
     _categoriaId = o?.categoriaId;
     _identificador = o?.tipoIdentificador ?? TipoIdentificador.qr;
@@ -104,7 +116,6 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
     _nombre.dispose();
     _datoClave.dispose();
     _descripcion.dispose();
-    _imagen.dispose();
     super.dispose();
   }
 
@@ -135,7 +146,8 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
     setState(() => _guardando = true);
     try {
       final descripcion = _descripcion.text.trim();
-      final imagen = _imagen.text.trim();
+      // La foto no va acá: tiene su propia ruta en la API (ADM25). Si se
+      // mandara, guardar un cambio de nombre le borraría la imagen.
       final aviso = await widget.alGuardar({
         'nombre': _nombre.text.trim(),
         'sala_id': _salaId,
@@ -146,7 +158,6 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
         // Sin texto se manda null, no la cadena vacía: así "sin descripción"
         // se representa siempre igual en la base.
         'descripcion': descripcion.isEmpty ? null : descripcion,
-        'imagen_url': imagen.isEmpty ? null : imagen,
         'tipo_identificador': _identificador.valorApi,
       });
       if (mounted && aviso != null) setState(() => _aviso = aviso);
@@ -191,15 +202,45 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
     return _erroresApi['descripcion'];
   }
 
-  String? _validarImagen(String? valor) {
-    if (_erroresApi['imagen_url'] != null) return _erroresApi['imagen_url'];
-    final texto = (valor ?? '').trim();
-    if (texto.isEmpty) return null;
-    final uri = Uri.tryParse(texto);
-    if (uri == null || !uri.isAbsolute || !['http', 'https'].contains(uri.scheme)) {
-      return 'La dirección tiene que empezar con http:// o https://';
+  /// El campo de la foto (ADM25).
+  ///
+  /// Sólo se puede cargar al editar: subir el archivo necesita el id de la
+  /// pieza, y en el alta todavía no existe. En el alta se avisa en una línea,
+  /// que es mejor que ofrecer un botón que después falla.
+  Widget _campoDeImagen() {
+    final objeto = widget.objeto;
+
+    if (objeto == null) {
+      return Text(
+        'Se carga después de registrar la pieza.',
+        style: AppText.sans(size: 12.5),
+      );
     }
-    return null;
+
+    final sesion = ProveedorSesion.de(context);
+
+    return CampoDeImagen(
+      url: _imagenUrl,
+      deshabilitado: _guardando,
+      campoDeError: 'imagen',
+      vistaPreviaAncha: true,
+      ayudaSinImagen: 'La ve el visitante cuando encuentra la pieza.',
+      vistaPrevia: (url) => VistaPreviaPortada(url: url, etiqueta: 'Foto de la pieza'),
+      // Se avisa con la pieza entera y no sólo con la dirección: la pantalla
+      // necesita la pieza actualizada para no seguir mostrando la copia que le
+      // pasó el listado.
+      alSubir: (bytes, tipo) async {
+        final actualizado = await subirFotoObjeto(sesion.token!, objeto.id, bytes, tipo);
+        widget.alCambiarImagen?.call(actualizado);
+        return actualizado.imagenUrl;
+      },
+      alQuitar: () async {
+        final actualizado = await quitarFotoObjeto(sesion.token!, objeto.id);
+        widget.alCambiarImagen?.call(actualizado);
+        return actualizado.imagenUrl;
+      },
+      alCambiar: (url) => setState(() => _imagenUrl = url),
+    );
   }
 
   /// El aviso de arriba de todo: el error general o la confirmación.
@@ -305,28 +346,7 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
           const SizedBox(height: 18),
 
           const EtiquetaCampo('Imagen', opcional: true),
-          TextFormField(
-            key: const ValueKey('imagen'),
-            controller: _imagen,
-            style: estiloCampo,
-            decoration: decoracionCampo(pista: 'https://…'),
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            validator: _validarImagen,
-            onChanged: (_) {
-              _alEscribir();
-              setState(() {});
-            },
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Dirección de una imagen ya publicada en internet.',
-            style: AppText.sans(size: 12.5),
-          ),
-          if (_imagen.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _VistaPrevia(url: _imagen.text.trim()),
-          ],
+          _campoDeImagen(),
 
           const SizedBox(height: 26),
           BotonPrincipal(
@@ -554,51 +574,6 @@ class _FormularioObjetoState extends State<FormularioObjeto> {
               : AppColors.superficie,
         ),
         side: const WidgetStatePropertyAll(BorderSide(color: AppColors.borde)),
-      ),
-    );
-  }
-}
-
-/// Muestra la imagen cargada para poder ver si la dirección es la correcta
-/// antes de guardar.
-class _VistaPrevia extends StatelessWidget {
-  final String url;
-  const _VistaPrevia({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        // Sin etiqueta el lector de pantalla anuncia "imagen" y nada más. Acá
-        // lo útil no es describir la foto —que la carga quien la está
-        // mirando— sino decir de qué imagen se trata.
-        semanticLabel: 'Vista previa de la pieza',
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, hijo, progreso) => progreso == null
-            ? hijo
-            : Container(
-                height: 160,
-                color: AppColors.superficie,
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(color: AppColors.acento),
-              ),
-        // Una dirección que no carga es lo más común al pegar un enlace, así
-        // que se avisa en vez de dejar un hueco.
-        errorBuilder: (context, error, pila) => Container(
-          height: 160,
-          color: AppColors.superficie,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'No se pudo cargar la imagen desde esa dirección.',
-            textAlign: TextAlign.center,
-            style: AppText.sans(size: 13),
-          ),
-        ),
       ),
     );
   }

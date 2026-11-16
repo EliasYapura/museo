@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
+import { borrarImagen, BUCKET_OBJETOS, ErrorDeImagen, subirImagen } from '../almacenamiento.js';
 import { pool } from '../db.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
@@ -133,8 +134,9 @@ objetosRouter.get('/:id/desafios', async (req, res) => {
   return res.json({ objeto: objeto.rows[0], desafios: rows });
 });
 
-// POST /objetos — registra un objeto (ADM15), con su descripcion e imagen
-// opcionales (ADM16).
+// POST /objetos — registra un objeto (ADM15), con su descripcion opcional
+// (ADM16). La foto se sube aparte, en POST /objetos/:id/imagen (ADM25), que
+// necesita la pieza ya creada.
 objetosRouter.post('/', async (req, res) => {
   const { valores, errores } = validarObjeto(req.body ?? {});
   if (Object.keys(errores).length > 0) {
@@ -153,8 +155,8 @@ objetosRouter.post('/', async (req, res) => {
       const { rows } = await pool.query(
         `WITH nuevo AS (
            INSERT INTO objetos (sala_id, categoria_id, nombre, dato_clave, descripcion,
-                                imagen_url, tipo_identificador, codigo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                                tipo_identificador, codigo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *
          )
          SELECT ${COLUMNAS} FROM nuevo o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
@@ -164,7 +166,6 @@ objetosRouter.post('/', async (req, res) => {
           valores.nombre,
           valores.dato_clave,
           valores.descripcion,
-          valores.imagen_url,
           valores.tipo_identificador,
           generarCodigo(),
         ]
@@ -181,9 +182,13 @@ objetosRouter.post('/', async (req, res) => {
 });
 
 // PUT /objetos/:id — modifica nombre, sala y dato clave (ADM15), descripcion
-// e imagen (ADM16) y el tipo de identificador (ADM17) de un objeto.
+// (ADM16) y el tipo de identificador (ADM17) de un objeto.
 // El codigo no se toca: si cambiara, el QR ya impreso dejaria de servir. Para
 // cambiarlo a proposito esta PATCH /objetos/:id/codigo.
+//
+// La foto tampoco, y eso es a proposito (ADM25): tiene su propia ruta, y si se
+// escribiera aca, guardar un cambio de nombre la borraria —el formulario ya no
+// manda la direccion—.
 objetosRouter.put('/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
 
@@ -199,7 +204,7 @@ objetosRouter.put('/:id', async (req, res) => {
       `WITH cambiado AS (
          UPDATE objetos
          SET sala_id = $2, categoria_id = $3, nombre = $4, dato_clave = $5,
-             descripcion = $6, imagen_url = $7, tipo_identificador = $8
+             descripcion = $6, tipo_identificador = $7
          WHERE id = $1
            AND (sala_id IS DISTINCT FROM $2
                 -- IS DISTINCT FROM y no <>: la categoria puede ser NULL, y
@@ -209,8 +214,7 @@ objetosRouter.put('/:id', async (req, res) => {
                 OR nombre IS DISTINCT FROM $4
                 OR dato_clave IS DISTINCT FROM $5
                 OR descripcion IS DISTINCT FROM $6
-                OR imagen_url IS DISTINCT FROM $7
-                OR tipo_identificador IS DISTINCT FROM $8)
+                OR tipo_identificador IS DISTINCT FROM $7)
          RETURNING *
        )
        SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
@@ -221,7 +225,6 @@ objetosRouter.put('/:id', async (req, res) => {
         valores.nombre,
         valores.dato_clave,
         valores.descripcion,
-        valores.imagen_url,
         valores.tipo_identificador,
       ]
     );
@@ -315,8 +318,15 @@ objetosRouter.delete('/:id', async (req, res) => {
   }
 
   try {
-    const { rowCount } = await pool.query('DELETE FROM objetos WHERE id = $1', [req.params.id]);
+    // Se devuelve la foto que tenia para borrar el archivo: a diferencia de
+    // una mision, que se archiva, aca la fila desaparece, y sin esto la imagen
+    // quedaria para siempre en el bucket sin que nada la apunte.
+    const { rows, rowCount } = await pool.query(
+      'DELETE FROM objetos WHERE id = $1 RETURNING imagen_url',
+      [req.params.id]
+    );
     if (rowCount === 0) return res.status(404).json(NO_ENCONTRADO);
+    await borrarImagen(rows[0].imagen_url, BUCKET_OBJETOS);
     return res.status(204).end();
   } catch (err) {
     // Entre la consulta de arriba y el DELETE alguien pudo crear un desafio
@@ -326,4 +336,78 @@ objetosRouter.delete('/:id', async (req, res) => {
     }
     throw err;
   }
+});
+
+// --- Foto de la pieza (ADM25) ----------------------------------------------
+//
+// Mismo mecanismo que la portada de una mision y que el icono de una insignia
+// (ADM25): el archivo llega crudo en el cuerpo con su Content-Type, y ese tipo
+// no decide nada —el tipo real lo reconoce almacenamiento.js mirando los
+// primeros bytes—.
+
+// POST /objetos/:id/imagen — reemplaza la foto de la pieza.
+objetosRouter.post('/:id/imagen', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
+
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { imagen: 'No llegó ninguna imagen' },
+    });
+  }
+
+  // Se consulta antes de subir para no dejar un archivo huerfano en Storage si
+  // la pieza no existe, y para quedarse con la foto vieja y poder borrarla.
+  const previa = await pool.query('SELECT imagen_url FROM objetos WHERE id = $1', [req.params.id]);
+  if (!previa.rows[0]) return res.status(404).json(NO_ENCONTRADO);
+
+  let url;
+  try {
+    url = await subirImagen(req.body, BUCKET_OBJETOS);
+  } catch (err) {
+    if (err instanceof ErrorDeImagen) {
+      return res.status(400).json({ error: 'Datos inválidos', errores: { imagen: err.message } });
+    }
+    throw err;
+  }
+
+  const { rows } = await pool.query(
+    `WITH cambiado AS (
+       UPDATE objetos SET imagen_url = $2 WHERE id = $1 RETURNING *
+     )
+     SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
+    [req.params.id, url]
+  );
+
+  // Recien cuando la nueva quedo guardada se borra la anterior. Al reves, un
+  // fallo entre medio dejaria la pieza apuntando a un archivo que ya no esta.
+  // borrarImagen no lanza: es limpieza, no parte de la operacion.
+  await borrarImagen(previa.rows[0].imagen_url, BUCKET_OBJETOS);
+
+  return res.json({ objeto: rows[0] });
+});
+
+// DELETE /objetos/:id/imagen — le saca la foto.
+objetosRouter.delete('/:id/imagen', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADO);
+
+  // Se lee la pieza completa de entrada: hace falta la direccion anterior para
+  // borrar el archivo, y si no tenia ninguna esta misma fila es la respuesta,
+  // sin tocar la base.
+  const previa = await pool.query(`SELECT ${COLUMNAS} ${DESDE} WHERE o.id = $1`, [req.params.id]);
+  if (!previa.rows[0]) return res.status(404).json(NO_ENCONTRADO);
+
+  const anterior = previa.rows[0].imagen_url;
+  if (anterior === null) return res.json({ objeto: previa.rows[0] });
+
+  const { rows } = await pool.query(
+    `WITH cambiado AS (
+       UPDATE objetos SET imagen_url = NULL WHERE id = $1 RETURNING *
+     )
+     SELECT ${COLUMNAS} FROM cambiado o JOIN salas s ON s.id = o.sala_id LEFT JOIN categorias c ON c.id = o.categoria_id`,
+    [req.params.id]
+  );
+  await borrarImagen(anterior, BUCKET_OBJETOS);
+
+  return res.json({ objeto: rows[0] ?? previa.rows[0] });
 });

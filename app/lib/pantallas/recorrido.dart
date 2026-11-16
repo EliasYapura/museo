@@ -1010,6 +1010,12 @@ class _Encontrada extends StatelessWidget {
       icono: Icons.check_circle_outline,
       titulo: 'La encontraste',
       children: [
+        // La foto va arriba del nombre: recién encontrada la pieza, lo primero
+        // que confirma que es la correcta es verla (ADM25).
+        if (escaneo.imagenUrl != null) ...[
+          _FotoDeLaPieza(url: escaneo.imagenUrl!, nombre: escaneo.pieza),
+          const SizedBox(height: 12),
+        ],
         if (escaneo.pieza != null) ...[
           Text(escaneo.pieza!, style: AppText.serif(size: 17)),
           const SizedBox(height: 8),
@@ -1017,6 +1023,41 @@ class _Encontrada extends StatelessWidget {
         if (escaneo.datoClave != null)
           Text(escaneo.datoClave!, style: AppText.sans(size: 14)),
       ],
+    );
+  }
+}
+
+/// La foto de la pieza que el visitante acaba de encontrar (ADM25).
+///
+/// Si no carga desaparece sin dejar hueco: el dato clave, que es la recompensa
+/// de verdad, está abajo y tiene que leerse igual. Por eso tampoco se muestra
+/// una rueda girando mientras viaja.
+class _FotoDeLaPieza extends StatelessWidget {
+  final String url;
+
+  /// Para el lector de pantalla. Describir la foto no se puede —no sabemos qué
+  /// tiene—, pero decir de qué pieza es ubica la imagen en la pantalla.
+  final String? nombre;
+
+  const _FotoDeLaPieza({required this.url, required this.nombre});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        url,
+        width: double.infinity,
+        height: 170,
+        fit: BoxFit.cover,
+        semanticLabel: nombre == null ? 'Foto de la pieza' : 'Foto de $nombre',
+        loadingBuilder: (context, hijo, progreso) =>
+            progreso == null ? hijo : const SizedBox(height: 170),
+        errorBuilder: (context, error, pila) {
+          debugPrint('No se pudo cargar la foto de la pieza $url: $error');
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 }

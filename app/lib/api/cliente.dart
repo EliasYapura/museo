@@ -731,6 +731,42 @@ Future<List<UsoDeObjeto>> listarDesafiosDeObjeto(String token, int id) async {
   }
 }
 
+/// POST /objetos/:id/imagen — sube la foto de la pieza (ADM25).
+///
+/// El archivo va crudo en el cuerpo, con su tipo. El servidor no le cree al
+/// tipo que mandamos: lo reconoce mirando los primeros bytes, así que mandar
+/// cualquier cosa diciendo que es un PNG no sirve de nada.
+///
+/// Tarda más que el resto de los pedidos porque sube un archivo, así que la
+/// pantalla tiene que mostrar que está trabajando.
+Future<Objeto> subirFotoObjeto(
+  String token,
+  int id,
+  List<int> bytes,
+  String tipo,
+) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id/imagen',
+    token: token,
+    metodo: 'POST',
+    bytes: bytes,
+    tipoDeContenido: tipo,
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  return _objetoDesde(cuerpo);
+}
+
+/// DELETE /objetos/:id/imagen — le saca la foto.
+Future<Objeto> quitarFotoObjeto(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/objetos/$id/imagen',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa pieza ya no existe.',
+  );
+  return _objetoDesde(cuerpo);
+}
+
 Objeto _objetoDesde(Map<String, dynamic> cuerpo) {
   try {
     return Objeto.desdeJson(cuerpo['objeto'] as Map<String, dynamic>);
