@@ -302,6 +302,42 @@ Future<MisionAdmin> archivarMision(String token, int id) async {
   return _misionDesde(cuerpo);
 }
 
+/// POST /misiones/:id/imagen — sube la portada de la misión (ADM25).
+///
+/// El archivo va crudo en el cuerpo, con su tipo. El servidor no le cree al
+/// tipo que mandamos: lo reconoce mirando los primeros bytes, así que mandar
+/// cualquier cosa diciendo que es un PNG no sirve de nada.
+///
+/// Tarda más que el resto de los pedidos porque sube un archivo, así que la
+/// pantalla tiene que mostrar que está trabajando.
+Future<MisionAdmin> subirPortadaMision(
+  String token,
+  int id,
+  List<int> bytes,
+  String tipo,
+) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id/imagen',
+    token: token,
+    metodo: 'POST',
+    bytes: bytes,
+    tipoDeContenido: tipo,
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _misionDesde(cuerpo);
+}
+
+/// DELETE /misiones/:id/imagen — le saca la portada.
+Future<MisionAdmin> quitarPortadaMision(String token, int id) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$id/imagen',
+    token: token,
+    metodo: 'DELETE',
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  return _misionDesde(cuerpo);
+}
+
 MisionAdmin _misionDesde(Map<String, dynamic> cuerpo) {
   try {
     return MisionAdmin.desdeJson(cuerpo['mision'] as Map<String, dynamic>);

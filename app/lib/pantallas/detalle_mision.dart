@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/mision.dart';
+import '../widgets/portada_mision.dart';
 import 'recorrido.dart';
 
 /// Cómo se juega una misión. Está escrito acá y no en la base porque es igual
@@ -172,15 +173,12 @@ class _Detalle extends StatelessWidget {
         const SizedBox(height: 18),
 
         Center(
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppColors.superficie,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borde),
-            ),
-            child: CustomPaint(painter: IconoPainter(mision.icono)),
+          child: PortadaMision(
+            mision: mision,
+            lado: 120,
+            radio: 16,
+            fondo: AppColors.superficie,
+            borde: AppColors.borde,
           ),
         ),
         const SizedBox(height: 20),

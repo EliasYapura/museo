@@ -34,18 +34,22 @@ app.use(cors({ origin: config.origenesPermitidos }));
 // Permite recibir cuerpos JSON en las peticiones.
 app.use(express.json());
 
-// La subida del ícono de una insignia llega como bytes y no como JSON
-// (ADM25). Va en su propia ruta y con los tipos acotados para que ninguna otra
-// pueda recibir un cuerpo binario sin querer.
+// Las imágenes que se suben llegan como bytes y no como JSON: el ícono de una
+// insignia, la portada de una misión (ADM25). Se declara ruta por
+// ruta, y con los tipos acotados, para que ninguna otra pueda recibir un
+// cuerpo binario sin querer.
 //
 // El límite acá es el del protocolo: deja pasar lo que no es absurdo y
 // almacenamiento.js aplica el de verdad, mirando el contenido. Sin este tope,
 // alguien podría mandar un cuerpo enorme y hacernos reservar memoria antes de
 // que nadie lo revise.
-app.use(
-  '/insignias/:id/icono',
-  express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '3mb' })
-);
+const cuerpoDeImagen = express.raw({
+  type: ['image/png', 'image/jpeg', 'image/webp'],
+  limit: '3mb',
+});
+
+app.use('/insignias/:id/icono', cuerpoDeImagen);
+app.use('/misiones/:id/imagen', cuerpoDeImagen);
 
 // Endpoint de diagnostico: sirve para confirmar que la API esta viva.
 // No consulta la base; responde aunque la base este caida.

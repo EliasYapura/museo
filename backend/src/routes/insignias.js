@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { borrarImagen, ErrorDeImagen, subirImagen } from '../almacenamiento.js';
+import { borrarImagen, BUCKET_INSIGNIAS, ErrorDeImagen, subirImagen } from '../almacenamiento.js';
 import { pool } from '../db.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
@@ -220,7 +220,7 @@ insigniasRouter.post('/:id/icono', async (req, res) => {
 
   let url;
   try {
-    url = await subirImagen(req.body);
+    url = await subirImagen(req.body, BUCKET_INSIGNIAS);
   } catch (err) {
     if (err instanceof ErrorDeImagen) {
       return res.status(400).json({ error: 'Datos inválidos', errores: { icono: err.message } });
@@ -239,7 +239,7 @@ insigniasRouter.post('/:id/icono', async (req, res) => {
   // Recién cuando la nueva quedó guardada se borra la anterior. Al revés, un
   // fallo entre medio dejaría la insignia apuntando a un archivo que ya no
   // está. borrarImagen no lanza: es limpieza, no parte de la operación.
-  await borrarImagen(previa.rows[0].icono_url);
+  await borrarImagen(previa.rows[0].icono_url, BUCKET_INSIGNIAS);
 
   return res.json({ insignia: rows[0] });
 });
@@ -264,7 +264,7 @@ insigniasRouter.delete('/:id/icono', async (req, res) => {
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
 
   const { icono_anterior: anterior, ...insignia } = rows[0];
-  await borrarImagen(anterior);
+  await borrarImagen(anterior, BUCKET_INSIGNIAS);
 
   return res.json({ insignia });
 });

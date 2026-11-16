@@ -6,8 +6,6 @@
 // - errores: un objeto campo -> mensaje. Vacio si todo esta bien.
 // Se informan todos los errores juntos, para no obligar a corregirlos de a uno.
 
-import { validarImagen } from './imagen.js';
-
 export const DURACION_MINIMA = 1;
 export const DURACION_MAXIMA = 240;
 const LARGO_MAXIMO_NOMBRE = 200; // igual que la columna VARCHAR(200)
@@ -28,6 +26,11 @@ function validarTextoObligatorio(valor, mensajeObligatorio) {
 // partir de la duracion, la cantidad de desafios y el tipo de cada uno
 // (ADM03, en dificultad.js). Si el cuerpo del pedido trae una, se ignora como
 // cualquier otro campo que no este en esta lista.
+//
+// La imagen de portada tampoco: ya no se manda como direccion, se sube como
+// archivo a POST /misiones/:id/imagen (ADM25). Dejarla aca seria peor que
+// inutil —si el formulario guardara sin mandarla, le borraria la portada a la
+// mision—.
 
 function validarDuracion(valor) {
   if (valor === undefined || valor === null || valor === '') {
@@ -48,7 +51,6 @@ export function validarMision(datos) {
     nombre: validarTextoObligatorio(datos.nombre, 'El nombre es obligatorio'),
     descripcion: validarTextoObligatorio(datos.descripcion, 'La descripción es obligatoria'),
     duracion_estimada: validarDuracion(datos.duracion_estimada),
-    imagen_url: validarImagen(datos.imagen_url),
   };
 
   if (resultados.nombre.valor !== undefined && largo(resultados.nombre.valor) > LARGO_MAXIMO_NOMBRE) {

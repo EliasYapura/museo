@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/insignia.dart';
 import '../../sesion/sesion.dart';
+import '../../widgets/campo_de_imagen.dart';
 import '../../widgets/formulario.dart';
 import '../../widgets/icono_insignia.dart';
 
@@ -52,10 +52,8 @@ class _FormularioInsigniaState extends State<FormularioInsignia> {
   String? _iconoUrl;
 
   bool _guardando = false;
-  bool _tocandoIcono = false;
   String _error = '';
   String _aviso = '';
-  String _errorIcono = '';
 
   /// Errores que devolvió la API por campo, para mostrarlos donde van.
   Map<String, String> _erroresApi = {};
@@ -154,169 +152,22 @@ class _FormularioInsigniaState extends State<FormularioInsignia> {
       );
     }
 
-    final tiene = _iconoUrl != null && _iconoUrl!.isNotEmpty;
-    final ocupado = _guardando || _tocandoIcono;
+    final sesion = ProveedorSesion.de(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // La clave hace que Flutter rearme la imagen cuando cambia la
-            // dirección. Sin ella reutiliza la anterior, que es justo lo que
-            // no se quiere al reemplazarla.
-            IconoInsignia(key: ValueKey(_iconoUrl), url: _iconoUrl, tamanio: 56),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                _tocandoIcono
-                    ? 'Subiendo…'
-                    : tiene
-                        ? 'Así se va a ver en la app.'
-                        : 'Sin imagen se muestra un ícono genérico.',
-                style: AppText.sans(size: 13),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: ocupado ? null : _elegirImagen,
-              icon: Icon(
-                Icons.image_outlined,
-                size: 18,
-                color: ocupado ? AppColors.textoInactivo : AppColors.acento,
-              ),
-              label: Text(
-                tiene ? 'Cambiar imagen' : 'Elegir imagen',
-                style: AppText.sans(
-                  size: 13.5,
-                  color: ocupado ? AppColors.textoInactivo : AppColors.acento,
-                  peso: FontWeight.w700,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                  color: ocupado ? AppColors.borde : AppColors.acento,
-                ),
-              ),
-            ),
-            if (tiene) ...[
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: ocupado ? null : _quitarImagen,
-                child: Text(
-                  'Quitar',
-                  style: AppText.sans(
-                    size: 13.5,
-                    color: ocupado ? AppColors.textoInactivo : AppColors.error,
-                    peso: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        if (_errorIcono.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Aviso(_errorIcono),
-        ],
-        const SizedBox(height: 4),
-        Text(
-          'PNG, JPEG o WebP, hasta 2 MB. Se guarda apenas la elegís, sin '
-          'esperar al botón de guardar.',
-          style: AppText.sans(size: 12.5),
-        ),
-      ],
+    return CampoDeImagen(
+      url: _iconoUrl,
+      deshabilitado: _guardando,
+      campoDeError: 'icono',
+      // Las insignias se ven a 56 píxeles como mucho: más que eso no mejora
+      // nada y tarda en subir.
+      ladoMaximo: 512,
+      ayudaSinImagen: 'Sin imagen se muestra un ícono genérico.',
+      vistaPrevia: (url) => IconoInsignia(url: url, tamanio: 56),
+      alSubir: (bytes, tipo) async =>
+          (await subirIconoInsignia(sesion.token!, insignia.id, bytes, tipo)).iconoUrl,
+      alQuitar: () async => (await quitarIconoInsignia(sesion.token!, insignia.id)).iconoUrl,
+      alCambiar: (url) => setState(() => _iconoUrl = url),
     );
-  }
-
-  /// Elige una imagen de la galería y la sube.
-  ///
-  /// Se sube en el momento y no al guardar el formulario porque es un pedido
-  /// distinto: guardar cambia el nombre y la descripción, y la imagen va por
-  /// su propia ruta. Mezclarlas obligaría a deshacer una si fallara la otra.
-  Future<void> _elegirImagen() async {
-    final sesion = ProveedorSesion.de(context);
-    final XFile? elegida;
-    try {
-      elegida = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        // Las insignias se ven a 56 píxeles como mucho: una foto de 12
-        // megapíxeles no mejora nada y tarda en subir.
-        maxWidth: 512,
-        maxHeight: 512,
-      );
-    } catch (error, pila) {
-      debugPrint('Fallo al abrir la galería: $error\n$pila');
-      if (mounted) setState(() => _errorIcono = 'No se pudo abrir la galería.');
-      return;
-    }
-    if (elegida == null || !mounted) return;
-
-    setState(() {
-      _tocandoIcono = true;
-      _errorIcono = '';
-    });
-
-    try {
-      final bytes = await elegida.readAsBytes();
-      // El tipo sale de la extensión, pero es sólo para la cabecera: el
-      // servidor lo reconoce mirando los primeros bytes y rechaza lo que no
-      // sea una imagen, diga lo que diga este dato.
-      final tipo = switch (elegida.path.toLowerCase().split('.').last) {
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        _ => 'image/jpeg',
-      };
-      final actualizada = await subirIconoInsignia(
-        sesion.token!,
-        widget.insignia!.id,
-        bytes,
-        tipo,
-      );
-      if (!mounted) return;
-      setState(() => _iconoUrl = actualizada.iconoUrl);
-    } on ErrorApi catch (error) {
-      if (!mounted) return;
-      if (error.sesionVencida) {
-        sesion.cerrarSesion();
-        return;
-      }
-      setState(() => _errorIcono = error.errores['icono'] ?? error.mensaje);
-    } catch (error, pila) {
-      debugPrint('Fallo al subir la imagen: $error\n$pila');
-      if (mounted) setState(() => _errorIcono = 'No se pudo subir la imagen.');
-    } finally {
-      if (mounted) setState(() => _tocandoIcono = false);
-    }
-  }
-
-  Future<void> _quitarImagen() async {
-    final sesion = ProveedorSesion.de(context);
-    setState(() {
-      _tocandoIcono = true;
-      _errorIcono = '';
-    });
-    try {
-      final actualizada = await quitarIconoInsignia(sesion.token!, widget.insignia!.id);
-      if (!mounted) return;
-      setState(() => _iconoUrl = actualizada.iconoUrl);
-    } on ErrorApi catch (error) {
-      if (!mounted) return;
-      if (error.sesionVencida) {
-        sesion.cerrarSesion();
-        return;
-      }
-      setState(() => _errorIcono = error.mensaje);
-    } catch (error, pila) {
-      debugPrint('Fallo al quitar la imagen: $error\n$pila');
-      if (mounted) setState(() => _errorIcono = 'No se pudo quitar la imagen.');
-    } finally {
-      if (mounted) setState(() => _tocandoIcono = false);
-    }
   }
 
   @override

@@ -12,7 +12,23 @@ import { config } from './config.js';
 // Se usa la API REST de Storage con fetch y no el SDK de Supabase: son tres
 // pedidos HTTP y el SDK arrastraria una dependencia entera para eso.
 
-const BUCKET = 'insignias';
+/// Un bucket por tabla que guarda imagenes. Separados y no uno solo con
+/// carpetas para que borrar de mas en uno no se lleve las imagenes de otro, y
+/// porque cada uno tiene su tope de tamanio configurado en Supabase.
+export const BUCKET_INSIGNIAS = 'insignias';
+export const BUCKET_MISIONES = 'misiones';
+export const BUCKET_OBJETOS = 'objetos';
+
+const BUCKETS = [BUCKET_INSIGNIAS, BUCKET_MISIONES, BUCKET_OBJETOS];
+
+/// El bucket va a la URL, asi que no puede ser cualquier texto. Un bucket que
+/// no esta en la lista es un error de programacion nuestro, no del
+/// administrador: por eso corta con Error y no con ErrorDeImagen.
+function verificarBucket(bucket) {
+  if (!BUCKETS.includes(bucket)) {
+    throw new Error(`Bucket desconocido: ${bucket}`);
+  }
+}
 
 /// Tipos que se aceptan, con los bytes que los identifican.
 ///
@@ -54,7 +70,9 @@ export function reconocerImagen(datos) {
 /// insignia. Storage sirve las URLs publicas por una cache de borde que sigue
 /// respondiendo un rato despues de borrar el archivo; reutilizando el nombre,
 /// cambiar la imagen mostraria la vieja hasta que la cache se vacie.
-export async function subirImagen(datos) {
+export async function subirImagen(datos, bucket) {
+  verificarBucket(bucket);
+
   const imagen = reconocerImagen(datos);
   if (!imagen) throw new ErrorDeImagen('El archivo no es una imagen PNG, JPEG o WebP');
   if (datos.length > TAMANIO_MAXIMO) {
@@ -62,7 +80,7 @@ export async function subirImagen(datos) {
   }
 
   const nombre = `${randomBytes(16).toString('hex')}.${imagen.extension}`;
-  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${BUCKET}/${nombre}`, {
+  const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${bucket}/${nombre}`, {
     method: 'POST',
     headers: { ...autorizacion(), 'Content-Type': imagen.tipo },
     body: datos,
@@ -71,23 +89,26 @@ export async function subirImagen(datos) {
   if (!res.ok) {
     throw new Error(`Storage rechazó la subida (${res.status}): ${await res.text()}`);
   }
-  return `${config.supabaseUrl}/storage/v1/object/public/${BUCKET}/${nombre}`;
+  return `${config.supabaseUrl}/storage/v1/object/public/${bucket}/${nombre}`;
 }
 
 /// Borra una imagen a partir de su direccion publica.
 ///
-/// Solo borra lo que esta en NUESTRO bucket: una direccion de otro lado se
-/// ignora en silencio. Asi, una insignia cuyo icono se habia cargado antes
-/// pegando un enlace de internet no hace fallar nada al reemplazarlo.
+/// Solo borra lo que esta en el bucket que se le indica: una direccion de otro
+/// lado —o de otro de nuestros buckets— se ignora en silencio. Asi, una mision
+/// cuya portada se habia cargado antes pegando un enlace de internet no hace
+/// fallar nada al reemplazarla.
 ///
 /// Nunca lanza. Borrar la imagen vieja es limpieza, y que falle no puede
 /// arruinar la operacion que el administrador si pidio.
-export async function borrarImagen(url) {
-  const nombre = nombreDeLaUrl(url);
+export async function borrarImagen(url, bucket) {
+  verificarBucket(bucket);
+
+  const nombre = nombreDeLaUrl(url, bucket);
   if (!nombre) return;
 
   try {
-    const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${BUCKET}/${nombre}`, {
+    const res = await fetch(`${config.supabaseUrl}/storage/v1/object/${bucket}/${nombre}`, {
       method: 'DELETE',
       headers: autorizacion(),
     });
@@ -99,10 +120,10 @@ export async function borrarImagen(url) {
   }
 }
 
-/// El nombre del archivo si la URL es de nuestro bucket, o null.
-function nombreDeLaUrl(url) {
+/// El nombre del archivo si la URL es de ese bucket nuestro, o null.
+function nombreDeLaUrl(url, bucket) {
   if (typeof url !== 'string') return null;
-  const prefijo = `${config.supabaseUrl}/storage/v1/object/public/${BUCKET}/`;
+  const prefijo = `${config.supabaseUrl}/storage/v1/object/public/${bucket}/`;
   if (!url.startsWith(prefijo)) return null;
 
   const nombre = url.slice(prefijo.length);

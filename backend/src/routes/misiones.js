@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { borrarImagen, BUCKET_MISIONES, ErrorDeImagen, subirImagen } from '../almacenamiento.js';
 import { pool } from '../db.js';
 import { recalcularDificultad } from '../dificultad.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
@@ -62,17 +63,13 @@ misionesRouter.post('/', async (req, res) => {
     //   y ninguna mision nace publicada, aunque el cuerpo diga lo contrario.
     // - creada_por sale del token y no del cuerpo, para que nadie pueda
     //   atribuirle la creacion de una mision a otra persona.
+    // - imagen_url tampoco se inserta: la portada se sube aparte, en
+    //   POST /misiones/:id/imagen (ADM25), que necesita la mision ya creada.
     const { rows } = await pool.query(
-      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, imagen_url, creada_por)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO misiones (nombre, descripcion, duracion_estimada, creada_por)
+       VALUES ($1, $2, $3, $4)
        RETURNING ${COLUMNAS}`,
-      [
-        valores.nombre,
-        valores.descripcion,
-        valores.duracion_estimada,
-        valores.imagen_url,
-        req.usuario.id,
-      ]
+      [valores.nombre, valores.descripcion, valores.duracion_estimada, req.usuario.id]
     );
     // La dificultad la calcula el servidor (ADM03). Al insertar queda el valor
     // por defecto de la columna, asi que se recalcula enseguida y se corrige en
@@ -100,6 +97,10 @@ misionesRouter.put('/:id', async (req, res) => {
     // desafios asociados no se tocan: el UPDATE es sobre esta fila de la tabla
     // misiones y nada mas, asi que los desafios quedan exactamente como estaban.
     //
+    // imagen_url tampoco se toca, y eso es a proposito (ADM25): la portada
+    // tiene su propia ruta, y si se escribiera aca, guardar un cambio de
+    // nombre la borraria —el formulario ya no manda la direccion—.
+    //
     // La condicion IS DISTINCT FROM hace que la fila solo se actualice si algun
     // dato cambio de verdad. Sin ella, guardar sin cambios dispararia el
     // trigger y la "ultima modificacion" mostraria una fecha en la que no se
@@ -107,20 +108,13 @@ misionesRouter.put('/:id', async (req, res) => {
     // NULL: NULL <> NULL da NULL, no FALSE.
     const { rows } = await pool.query(
       `UPDATE misiones
-       SET nombre = $2, descripcion = $3, duracion_estimada = $4, imagen_url = $5
+       SET nombre = $2, descripcion = $3, duracion_estimada = $4
        WHERE id = $1 AND archivada = FALSE
          AND (nombre IS DISTINCT FROM $2
               OR descripcion IS DISTINCT FROM $3
-              OR duracion_estimada IS DISTINCT FROM $4
-              OR imagen_url IS DISTINCT FROM $5)
+              OR duracion_estimada IS DISTINCT FROM $4)
        RETURNING ${COLUMNAS}`,
-      [
-        req.params.id,
-        valores.nombre,
-        valores.descripcion,
-        valores.duracion_estimada,
-        valores.imagen_url,
-      ]
+      [req.params.id, valores.nombre, valores.descripcion, valores.duracion_estimada]
     );
     // Cambiar la duracion cambia la dificultad (ADM03), asi que se recalcula.
     // Tambien cuando el editar no modifico nada: las misiones viejas traen una
@@ -216,4 +210,92 @@ misionesRouter.patch('/:id/archivada', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json(NO_ENCONTRADA);
   return res.json({ mision: rows[0] });
+});
+
+// --- Imagen de portada (ADM25) ---------------------------------------------
+//
+// Mismo mecanismo que el icono de una insignia (ADM25): el archivo llega crudo
+// en el cuerpo con su Content-Type, y ese tipo no decide nada —sirve para que
+// express.raw acepte el cuerpo, y el tipo real lo reconoce almacenamiento.js
+// mirando los primeros bytes—.
+//
+// Va en su propia ruta y no en el PUT por lo mismo que activa o archivada:
+// guardar el formulario no tiene que cambiar la portada, y subir una portada
+// no tiene que poder tocar el nombre ni la duracion.
+
+// POST /misiones/:id/imagen — reemplaza la portada de la mision.
+misionesRouter.post('/:id/imagen', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { imagen: 'No llegó ninguna imagen' },
+    });
+  }
+
+  // Se consulta antes de subir para no dejar un archivo huerfano en Storage si
+  // la mision no existe, y para quedarse con la portada vieja y poder borrarla.
+  const previa = await pool.query(
+    'SELECT imagen_url FROM misiones WHERE id = $1 AND archivada = FALSE',
+    [req.params.id]
+  );
+  if (!previa.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+
+  let url;
+  try {
+    url = await subirImagen(req.body, BUCKET_MISIONES);
+  } catch (err) {
+    if (err instanceof ErrorDeImagen) {
+      return res.status(400).json({ error: 'Datos inválidos', errores: { imagen: err.message } });
+    }
+    throw err;
+  }
+
+  // Sin IS DISTINCT FROM, a proposito: cada subida genera un nombre nuevo, asi
+  // que la direccion siempre cambia. Y cambiar la portada ES modificar la
+  // mision, por lo que mover la fecha del trigger es lo correcto.
+  const { rows } = await pool.query(
+    `UPDATE misiones SET imagen_url = $2
+     WHERE id = $1 AND archivada = FALSE
+     RETURNING ${COLUMNAS}`,
+    [req.params.id, url]
+  );
+
+  // Recien cuando la nueva quedo guardada se borra la anterior. Al reves, un
+  // fallo entre medio dejaria la mision apuntando a un archivo que ya no esta.
+  // borrarImagen no lanza: es limpieza, no parte de la operacion.
+  await borrarImagen(previa.rows[0].imagen_url, BUCKET_MISIONES);
+
+  return res.json({ mision: rows[0] });
+});
+
+// DELETE /misiones/:id/imagen — le saca la portada y vuelve al icono tematico.
+misionesRouter.delete('/:id/imagen', async (req, res) => {
+  if (!esIdValido(req.params.id)) return res.status(404).json(NO_ENCONTRADA);
+
+  // Se lee la mision completa de entrada: hace falta la direccion anterior
+  // para borrar el archivo, y si no habia ninguna esta misma fila es la
+  // respuesta, sin tocar la base.
+  const previa = await pool.query(
+    `SELECT ${COLUMNAS} FROM misiones WHERE id = $1 AND archivada = FALSE`,
+    [req.params.id]
+  );
+  if (!previa.rows[0]) return res.status(404).json(NO_ENCONTRADA);
+
+  const anterior = previa.rows[0].imagen_url;
+  // Ya no tiene portada: no se escribe nada. Sin esto, el UPDATE dispararia el
+  // trigger y la "ultima modificacion" mostraria una fecha en la que no se
+  // modifico nada.
+  if (anterior === null) return res.json({ mision: previa.rows[0] });
+
+  const { rows } = await pool.query(
+    `UPDATE misiones SET imagen_url = NULL
+     WHERE id = $1 AND archivada = FALSE
+     RETURNING ${COLUMNAS}`,
+    [req.params.id]
+  );
+  await borrarImagen(anterior, BUCKET_MISIONES);
+
+  return res.json({ mision: rows[0] ?? previa.rows[0] });
 });

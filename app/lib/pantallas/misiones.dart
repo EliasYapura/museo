@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/cliente.dart';
 import '../estilo.dart';
 import '../modelos/mision.dart';
+import '../widgets/portada_mision.dart';
 import 'detalle_mision.dart';
 
 /// Listado de misiones disponibles (VIS01).
@@ -278,16 +279,9 @@ class _TarjetaMision extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Miniatura con el ícono temático
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: AppColors.fondo,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: CustomPaint(painter: IconoPainter(mision.icono)),
-            ),
+            // La portada que cargó el museo, o el ícono temático si no tiene
+            // ninguna (ADM25).
+            PortadaMision(mision: mision, lado: 96),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

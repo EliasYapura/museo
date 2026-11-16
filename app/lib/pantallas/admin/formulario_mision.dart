@@ -4,6 +4,8 @@ import '../../api/cliente.dart';
 import '../../estilo.dart';
 import '../../modelos/mision.dart';
 import '../../modelos/mision_admin.dart';
+import '../../sesion/sesion.dart';
+import '../../widgets/campo_de_imagen.dart';
 import '../../widgets/formulario.dart';
 
 /// Las mismas reglas que aplica la API, en backend/src/validaciones/mision.js.
@@ -41,7 +43,11 @@ class _FormularioMisionState extends State<FormularioMision> {
   late final TextEditingController _nombre;
   late final TextEditingController _descripcion;
   late final TextEditingController _duracion;
-  late final TextEditingController _imagen;
+
+  /// La portada que tiene puesta ahora (ADM25). Se guarda en el estado y no se
+  /// lee de widget.mision porque cambia sin salir de la pantalla: subir o
+  /// quitar la imagen es un pedido aparte del botón de guardar.
+  String? _imagenUrl;
 
   bool _guardando = false;
   String _error = '';
@@ -57,7 +63,7 @@ class _FormularioMisionState extends State<FormularioMision> {
     _nombre = TextEditingController(text: m?.nombre ?? '');
     _descripcion = TextEditingController(text: m?.descripcion ?? '');
     _duracion = TextEditingController(text: m == null ? '' : '${m.duracionMin}');
-    _imagen = TextEditingController(text: m?.imagenUrl ?? '');
+    _imagenUrl = m?.imagenUrl;
   }
 
   @override
@@ -65,7 +71,6 @@ class _FormularioMisionState extends State<FormularioMision> {
     _nombre.dispose();
     _descripcion.dispose();
     _duracion.dispose();
-    _imagen.dispose();
     super.dispose();
   }
 
@@ -81,13 +86,12 @@ class _FormularioMisionState extends State<FormularioMision> {
 
     setState(() => _guardando = true);
     try {
-      final imagen = _imagen.text.trim();
+      // La portada no va acá: tiene su propia ruta en la API (ADM25). Si se
+      // mandara, guardar un cambio de nombre le borraría la imagen.
       final aviso = await widget.alGuardar({
         'nombre': _nombre.text.trim(),
         'descripcion': _descripcion.text.trim(),
         'duracion_estimada': int.parse(_duracion.text.trim()),
-        // Sin imagen se manda null, no el texto vacío.
-        'imagen_url': imagen.isEmpty ? null : imagen,
       });
       if (mounted && aviso != null) setState(() => _aviso = aviso);
     } on ErrorApi catch (error) {
@@ -144,15 +148,39 @@ class _FormularioMisionState extends State<FormularioMision> {
     return null;
   }
 
-  String? _validarImagen(String? valor) {
-    if (_erroresApi['imagen_url'] != null) return _erroresApi['imagen_url'];
-    final texto = (valor ?? '').trim();
-    if (texto.isEmpty) return null;
-    final uri = Uri.tryParse(texto);
-    if (uri == null || !uri.isAbsolute || !['http', 'https'].contains(uri.scheme)) {
-      return 'La dirección tiene que empezar con http:// o https://';
+  /// El campo de la portada (ADM25).
+  ///
+  /// Sólo se puede cargar al editar: subir el archivo necesita el id de la
+  /// misión, y en el alta todavía no existe. En el alta se avisa en una línea,
+  /// que es mejor que ofrecer un botón que después falla.
+  Widget _campoDeImagen() {
+    final mision = widget.mision;
+
+    if (mision == null) {
+      return Text(
+        'Se carga después de crear la misión. Sin portada, la misión se muestra '
+        'con un ícono temático.',
+        style: AppText.sans(size: 12.5),
+      );
     }
-    return null;
+
+    final sesion = ProveedorSesion.de(context);
+
+    return CampoDeImagen(
+      url: _imagenUrl,
+      deshabilitado: _guardando,
+      campoDeError: 'imagen',
+      vistaPreviaAncha: true,
+      ayudaSinImagen: 'Sin portada se muestra un ícono temático.',
+      vistaPrevia: (url) => VistaPreviaPortada(
+        url: url,
+        etiqueta: 'Portada de la misión',
+      ),
+      alSubir: (bytes, tipo) async =>
+          (await subirPortadaMision(sesion.token!, mision.id, bytes, tipo)).imagenUrl,
+      alQuitar: () async => (await quitarPortadaMision(sesion.token!, mision.id)).imagenUrl,
+      alCambiar: (url) => setState(() => _imagenUrl = url),
+    );
   }
 
   /// El aviso de arriba de todo: el error general o la confirmación.
@@ -234,28 +262,7 @@ class _FormularioMisionState extends State<FormularioMision> {
           const SizedBox(height: 18),
 
           const EtiquetaCampo('Imagen de portada', opcional: true),
-          TextFormField(
-            key: const ValueKey('imagen'),
-            controller: _imagen,
-            style: estiloCampo,
-            decoration: decoracionCampo(pista: 'https://…'),
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            validator: _validarImagen,
-            onChanged: (_) {
-              _alEscribir();
-              setState(() {});
-            },
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Dirección de una imagen ya publicada en internet.',
-            style: AppText.sans(size: 12.5),
-          ),
-          if (_imagen.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _VistaPrevia(url: _imagen.text.trim()),
-          ],
+          _campoDeImagen(),
 
           const SizedBox(height: 26),
           BotonPrincipal(
@@ -265,51 +272,6 @@ class _FormularioMisionState extends State<FormularioMision> {
             alTocar: _guardar,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Muestra la imagen cargada para poder ver si la dirección es la correcta
-/// antes de guardar.
-class _VistaPrevia extends StatelessWidget {
-  final String url;
-  const _VistaPrevia({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        // Sin etiqueta el lector de pantalla anuncia "imagen" y nada más. Acá
-        // lo útil no es describir la foto —que la carga quien la está
-        // mirando— sino decir de qué imagen se trata.
-        semanticLabel: 'Vista previa de la portada de la misión',
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, hijo, progreso) => progreso == null
-            ? hijo
-            : Container(
-                height: 160,
-                color: AppColors.superficie,
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(color: AppColors.acento),
-              ),
-        // Una dirección que no carga es lo más común al pegar un enlace, así
-        // que se avisa en vez de dejar un hueco.
-        errorBuilder: (context, error, pila) => Container(
-          height: 160,
-          color: AppColors.superficie,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'No se pudo cargar la imagen desde esa dirección.',
-            textAlign: TextAlign.center,
-            style: AppText.sans(size: 13),
-          ),
-        ),
       ),
     );
   }
