@@ -112,14 +112,11 @@ CREATE TABLE misiones (
     duracion_estimada   SMALLINT           NOT NULL,
     activa              BOOLEAN            NOT NULL DEFAULT FALSE,
     archivada           BOOLEAN            NOT NULL DEFAULT FALSE,
-    mision_previa_id    BIGINT
-                        REFERENCES misiones(id) ON DELETE SET NULL,
     creada_por          BIGINT
                         REFERENCES usuarios(id) ON DELETE SET NULL,
     creada_en           TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
     actualizada_en      TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_duracion     CHECK (duracion_estimada BETWEEN 1 AND 240),
-    CONSTRAINT chk_no_autoprevia CHECK (mision_previa_id IS NULL OR mision_previa_id <> id),
     -- NOT NULL no alcanza: un texto vacio o de solo espacios no es NULL (ADM02).
     -- '\S' exige al menos un caracter que no sea espacio, tabulacion ni salto.
     CONSTRAINT chk_nombre_con_texto      CHECK (nombre ~ '\S'),
@@ -133,8 +130,6 @@ COMMENT ON COLUMN misiones.dificultad IS
     'de cada uno (ADM03). No la elige el administrador: se recalcula al editar la misión '
     'o al agregar, cambiar o borrar un desafío. El valor por defecto solo vale el instante '
     'entre el INSERT de una misión nueva y su primer cálculo.';
-COMMENT ON COLUMN misiones.mision_previa_id IS
-    'Misión que debe completarse antes de desbloquear esta (historia VIS12).';
 COMMENT ON COLUMN misiones.archivada IS
     'Baja lógica: conserva el historial de progreso en lugar de borrarlo (ADM07).';
 

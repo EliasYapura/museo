@@ -94,9 +94,6 @@ INSERT INTO misiones (nombre, descripcion, dificultad, duracion_estimada, activa
  -- y vacía no tiene nada para resolver (ADM04).
  'media', 25, FALSE, 1);
 
--- La tercera misión se desbloquea al completar la segunda
-UPDATE misiones SET mision_previa_id = 2 WHERE id = 3;
-
 -- ---------- Desafíos ----------
 INSERT INTO desafios (mision_id, objeto_id, orden, tipo, enunciado, configuracion, respuesta_correcta, puntos) VALUES
 (2, (SELECT id FROM objetos WHERE codigo='MLP-OBJ-005'), 1, 'escaneo_objeto',
