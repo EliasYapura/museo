@@ -29,6 +29,7 @@ museo/
 ├── app/          App Flutter: el recorrido del visitante y la administración
 ├── backend/      API REST en Node + Express, con sus pruebas
 └── docs/         Esquema de base de datos, DER, backlog y plan de pruebas
+    └── der/      Genera el diagrama entidad-relación desde schema.sql
 ```
 
 ## Requisitos

@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1142" height="578" viewBox="0 0 1142 578">
+<rect width="1142" height="578" fill="#ffffff"/>
+<text x="34.0" y="38.0" font-family="Helvetica, Arial, sans-serif" font-size="16" fill="rgb(20,20,20)" font-weight="bold">Exploradores del Museo — Modelo de datos</text>
+<text x="34.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="rgb(110,110,110)">PostgreSQL · 13 tablas · 18 claves foráneas · generado desde schema.sql</text>
+<rect x="34" y="68" width="10" height="10" fill="rgb(122,92,54)"/>
+<text x="49.0" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(80,80,80)">Contenido del museo</text>
+<rect x="151.31650000000002" y="68" width="10" height="10" fill="rgb(140,106,58)"/>
+<text x="166.3" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(80,80,80)">Diseño de la experiencia</text>
+<rect x="281.38300000000004" y="68" width="10" height="10" fill="rgb(108,72,108)"/>
+<text x="296.4" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(80,80,80)">Gamificación</text>
+<rect x="367.5045" y="68" width="10" height="10" fill="rgb(58,86,122)"/>
+<text x="382.5" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(80,80,80)">Usuarios y progreso</text>
+<rect x="480.554" y="68" width="10" height="10" fill="rgb(70,70,70)"/>
+<text x="495.6" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(80,80,80)">Analítica</text>
+<text x="902.0" y="77.0" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="rgb(110,110,110)">PK clave primaria · FK clave foránea · UQ valor único</text>
+<circle cx="220.0" cy="115.0" r="2.2" fill="rgb(122,92,54)"/>
+<path d="M256.0 137.3 L238.0 137.3 L238.0 115.0 L220.0 115.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="220.0" cy="233.5" r="2.2" fill="rgb(122,92,54)"/>
+<path d="M256.0 150.8 L238.0 150.8 L238.0 233.5 L220.0 233.5" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<path d="M664.0 231.8 L677.0 231.8 L677.0 105.0 L652.0 105.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7" stroke-dasharray="3 2"/>
+<circle cx="652.0" cy="105.0" r="2.2" fill="rgb(140,106,58)"/>
+<circle cx="700.0" cy="115.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M664.0 245.3 L682.0 245.3 L682.0 115.0 L700.0 115.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="478.0" cy="115.0" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M442.0 336.8 L460.0 336.8 L460.0 115.0 L478.0 115.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="442.0" cy="115.0" r="2.2" fill="rgb(122,92,54)"/>
+<path d="M442.0 350.3 L460.0 350.3 L460.0 115.0 L442.0 115.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="256.0" cy="314.5" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M220.0 333.8 L238.0 333.8 L238.0 314.5 L256.0 314.5" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="886.0" cy="124.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M922.0 137.3 L904.0 137.3 L904.0 124.0 L886.0 124.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="664.0" cy="124.0" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M922.0 150.8 L904.0 150.8 L904.0 536.0 L682.0 536.0 L682.0 124.0 L664.0 124.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="1108.0" cy="115.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M1108.0 282.8 L1126.0 282.8 L1126.0 115.0 L1108.0 115.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="442.0" cy="323.5" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M922.0 296.3 L904.0 296.3 L904.0 543.0 L460.0 543.0 L460.0 323.5 L442.0 323.5" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="886.0" cy="133.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M886.0 269.3 L904.0 269.3 L904.0 133.0 L886.0 133.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="664.0" cy="328.0" r="2.2" fill="rgb(108,72,108)"/>
+<path d="M700.0 282.8 L682.0 282.8 L682.0 328.0 L664.0 328.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="886.0" cy="142.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M922.0 441.8 L904.0 441.8 L904.0 142.0 L886.0 142.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="1108.0" cy="124.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M1108.0 455.3 L1126.0 455.3 L1126.0 124.0 L1108.0 124.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="442.0" cy="332.5" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M922.0 468.8 L904.0 468.8 L904.0 550.0 L460.0 550.0 L460.0 332.5 L442.0 332.5" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="664.0" cy="133.0" r="2.2" fill="rgb(140,106,58)"/>
+<path d="M700.0 374.3 L682.0 374.3 L682.0 133.0 L664.0 133.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<circle cx="886.0" cy="151.0" r="2.2" fill="rgb(58,86,122)"/>
+<path d="M886.0 387.8 L904.0 387.8 L904.0 151.0 L886.0 151.0" fill="none" stroke="rgb(150,150,150)" stroke-width="0.7"/>
+<rect x="34" y="96" width="186" height="92.5" fill="rgb(247,241,230)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="34" y="96" width="186" height="19" fill="rgb(122,92,54)"/>
+<text x="115.9" y="109.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">salas</text>
+<text x="41.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">PK</text>
+<text x="69.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="206.1" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="41.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">UQ</text>
+<text x="69.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="176.2" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(150)</text>
+<text x="69.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nivel</text>
+<text x="179.8" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(50)</text>
+<text x="69.0" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">area_tematica</text>
+<text x="176.2" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(100)</text>
+<text x="69.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">orden_recorrido</text>
+<text x="191.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<rect x="34" y="214.5" width="186" height="52" fill="rgb(247,241,230)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="34" y="214.5" width="186" height="19" fill="rgb(122,92,54)"/>
+<text x="105.1" y="227.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">categorias</text>
+<text x="41.0" y="243.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">PK</text>
+<text x="69.0" y="243.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="206.1" y="243.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="41.0" y="257.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">UQ</text>
+<text x="69.0" y="257.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="179.8" y="257.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(80)</text>
+<rect x="34" y="292.5" width="186" height="92.5" fill="rgb(250,244,232)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="34" y="292.5" width="186" height="19" fill="rgb(140,106,58)"/>
+<text x="114.6" y="305.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">pistas</text>
+<text x="41.0" y="321.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">PK</text>
+<text x="69.0" y="321.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="197.5" y="321.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="41.0" y="335.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">FK</text>
+<text x="69.0" y="335.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">desafio_id</text>
+<text x="197.5" y="335.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="69.0" y="348.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">orden</text>
+<text x="191.0" y="348.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="69.0" y="362.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">texto</text>
+<text x="202.5" y="362.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="69.0" y="375.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">penalizacion</text>
+<text x="191.0" y="375.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<rect x="256" y="96" width="186" height="173.5" fill="rgb(247,241,230)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="256" y="96" width="186" height="19" fill="rgb(122,92,54)"/>
+<text x="333.7" y="109.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">objetos</text>
+<text x="263.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">PK</text>
+<text x="291.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="419.5" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="263.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">FK</text>
+<text x="291.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">sala_id</text>
+<text x="428.1" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="263.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">FK</text>
+<text x="291.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">categoria_id</text>
+<text x="428.1" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="291.0" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="398.2" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(200)</text>
+<text x="291.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">descripcion</text>
+<text x="424.5" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="291.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">dato_clave</text>
+<text x="424.5" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="291.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">imagen_url</text>
+<text x="424.5" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="291.0" y="219.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">tipo_identificador</text>
+<text x="385.9" y="219.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">tipo_identificador</text>
+<text x="263.0" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(122,92,54)" font-weight="bold">UQ</text>
+<text x="291.0" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">codigo</text>
+<text x="398.2" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(120)</text>
+<text x="291.0" y="246.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">activo</text>
+<text x="422.7" y="246.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<text x="291.0" y="260.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">creado_en</text>
+<text x="405.0" y="260.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="256" y="295.5" width="186" height="146.5" fill="rgb(250,244,232)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="256" y="295.5" width="186" height="19" fill="rgb(140,106,58)"/>
+<text x="331.3" y="308.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">desafios</text>
+<text x="263.0" y="324.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">PK</text>
+<text x="291.0" y="324.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="419.5" y="324.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="263.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">FK</text>
+<text x="291.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">mision_id</text>
+<text x="419.5" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="263.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">FK</text>
+<text x="291.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">objeto_id</text>
+<text x="419.5" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="291.0" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">orden</text>
+<text x="413.0" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="291.0" y="378.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">tipo</text>
+<text x="400.0" y="378.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">tipo_desafio</text>
+<text x="291.0" y="392.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">enunciado</text>
+<text x="424.5" y="392.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="291.0" y="405.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">configuracion</text>
+<text x="419.5" y="405.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">jsonb</text>
+<text x="291.0" y="419.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">respuesta_correcta</text>
+<text x="424.5" y="419.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="291.0" y="432.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">puntos</text>
+<text x="413.0" y="432.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<rect x="478" y="96" width="186" height="187" fill="rgb(250,244,232)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="478" y="96" width="186" height="19" fill="rgb(140,106,58)"/>
+<text x="552.3" y="109.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">misiones</text>
+<text x="485.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">PK</text>
+<text x="513.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="641.5" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="513.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="620.2" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(200)</text>
+<text x="513.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">descripcion</text>
+<text x="646.5" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="513.0" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">imagen_url</text>
+<text x="646.5" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="513.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">dificultad</text>
+<text x="609.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">dificultad_mision</text>
+<text x="513.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">duracion_estimada</text>
+<text x="635.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="513.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">activa</text>
+<text x="644.7" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<text x="513.0" y="219.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">archivada</text>
+<text x="644.7" y="219.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<text x="485.0" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">FK</text>
+<text x="513.0" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">mision_previa_id</text>
+<text x="641.5" y="233.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="485.0" y="246.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(140,106,58)" font-weight="bold">FK</text>
+<text x="513.0" y="246.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">creada_por</text>
+<text x="641.5" y="246.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="513.0" y="260.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">creada_en</text>
+<text x="627.0" y="260.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<text x="513.0" y="273.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">actualizada_en</text>
+<text x="627.0" y="273.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="478" y="309" width="186" height="106" fill="rgb(245,238,245)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="478" y="309" width="186" height="19" fill="rgb(108,72,108)"/>
+<text x="552.5" y="322.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">insignias</text>
+<text x="485.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(108,72,108)" font-weight="bold">PK</text>
+<text x="513.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="650.1" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="485.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(108,72,108)" font-weight="bold">UQ</text>
+<text x="513.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="620.2" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(120)</text>
+<text x="513.0" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">descripcion</text>
+<text x="646.5" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="513.0" y="378.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">icono_url</text>
+<text x="646.5" y="378.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">text</text>
+<text x="513.0" y="392.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">condicion</text>
+<text x="641.5" y="392.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">jsonb</text>
+<text x="513.0" y="405.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">activa</text>
+<text x="644.7" y="405.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<rect x="700" y="96" width="186" height="119.5" fill="rgb(235,241,248)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="700" y="96" width="186" height="19" fill="rgb(58,86,122)"/>
+<text x="775.0" y="109.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">usuarios</text>
+<text x="707.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">PK</text>
+<text x="735.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="863.5" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="707.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">UQ</text>
+<text x="735.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">email</text>
+<text x="842.2" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(255)</text>
+<text x="735.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">password_hash</text>
+<text x="842.2" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(255)</text>
+<text x="735.0" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">nombre</text>
+<text x="842.2" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">varchar(120)</text>
+<text x="735.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">rol</text>
+<text x="846.9" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">rol_usuario</text>
+<text x="735.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">activo</text>
+<text x="866.7" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<text x="735.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">creado_en</text>
+<text x="849.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="700" y="241.5" width="186" height="65.5" fill="rgb(245,238,245)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="700" y="241.5" width="186" height="19" fill="rgb(108,72,108)"/>
+<text x="753.9" y="254.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">usuarios_insignias</text>
+<text x="707.0" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(108,72,108)" font-weight="bold">PK+FK</text>
+<text x="735.0" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">usuario_id</text>
+<text x="863.5" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="707.0" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(108,72,108)" font-weight="bold">PK+FK</text>
+<text x="735.0" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">insignia_id</text>
+<text x="872.1" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="735.0" y="297.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">obtenida_en</text>
+<text x="849.0" y="297.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="700" y="333" width="186" height="92.5" fill="rgb(235,241,248)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="700" y="333" width="186" height="19" fill="rgb(58,86,122)"/>
+<text x="766.3" y="346.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">valoraciones</text>
+<text x="707.0" y="362.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">PK</text>
+<text x="735.0" y="362.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="863.5" y="362.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="707.0" y="375.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="735.0" y="375.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">mision_id</text>
+<text x="863.5" y="375.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="707.0" y="389.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="735.0" y="389.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">usuario_id</text>
+<text x="863.5" y="389.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="735.0" y="402.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">puntuacion</text>
+<text x="857.0" y="402.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="735.0" y="416.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">creada_en</text>
+<text x="849.0" y="416.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="922" y="96" width="186" height="119.5" fill="rgb(235,241,248)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="922" y="96" width="186" height="19" fill="rgb(58,86,122)"/>
+<text x="974.9" y="109.0" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">progreso_misiones</text>
+<text x="929.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">PK</text>
+<text x="957.0" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="1085.5" y="125.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="957.0" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">usuario_id</text>
+<text x="1085.5" y="138.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="957.0" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">mision_id</text>
+<text x="1085.5" y="152.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="957.0" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">estado</text>
+<text x="1052.2" y="165.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">estado_progreso</text>
+<text x="957.0" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">puntos_obtenidos</text>
+<text x="1094.1" y="179.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">int</text>
+<text x="957.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">iniciada_en</text>
+<text x="1071.0" y="192.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<text x="957.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">finalizada_en</text>
+<text x="1071.0" y="206.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="922" y="241.5" width="186" height="133" fill="rgb(235,241,248)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="922" y="241.5" width="186" height="19" fill="rgb(58,86,122)"/>
+<text x="975.9" y="254.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">progreso_desafios</text>
+<text x="929.0" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">PK</text>
+<text x="957.0" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="1085.5" y="270.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="957.0" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">progreso_mision_id</text>
+<text x="1085.5" y="284.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="297.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(58,86,122)" font-weight="bold">FK</text>
+<text x="957.0" y="297.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">desafio_id</text>
+<text x="1085.5" y="297.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="957.0" y="311.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">completado</text>
+<text x="1088.7" y="311.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bool</text>
+<text x="957.0" y="324.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">intentos</text>
+<text x="1079.0" y="324.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="957.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">pistas_usadas</text>
+<text x="1079.0" y="338.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="957.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">puntos_obtenidos</text>
+<text x="1079.0" y="351.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">smallint</text>
+<text x="957.0" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">respondido_en</text>
+<text x="1071.0" y="365.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+<rect x="922" y="400.5" width="186" height="119.5" fill="rgb(240,240,240)" stroke="rgb(190,190,190)" stroke-width="0.8"/>
+<rect x="922" y="400.5" width="186" height="19" fill="rgb(70,70,70)"/>
+<text x="998.4" y="413.5" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="rgb(255,255,255)" font-weight="bold">eventos</text>
+<text x="929.0" y="429.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(70,70,70)" font-weight="bold">PK</text>
+<text x="957.0" y="429.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(20,20,20)" font-weight="bold">id</text>
+<text x="1085.5" y="429.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="443.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(70,70,70)" font-weight="bold">FK</text>
+<text x="957.0" y="443.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">usuario_id</text>
+<text x="1085.5" y="443.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="456.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(70,70,70)" font-weight="bold">FK</text>
+<text x="957.0" y="456.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">progreso_mision_id</text>
+<text x="1085.5" y="456.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="929.0" y="470.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(70,70,70)" font-weight="bold">FK</text>
+<text x="957.0" y="470.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">desafio_id</text>
+<text x="1085.5" y="470.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">bigint</text>
+<text x="957.0" y="483.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">tipo</text>
+<text x="1067.4" y="483.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">tipo_evento</text>
+<text x="957.0" y="497.0" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">datos</text>
+<text x="1085.5" y="497.0" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">jsonb</text>
+<text x="957.0" y="510.5" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="rgb(55,55,55)">ocurrido_en</text>
+<text x="1071.0" y="510.5" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="rgb(150,150,150)">timestamp</text>
+</svg>
