@@ -29,11 +29,16 @@ class FormularioDesafio extends StatefulWidget {
 
   final String textoBoton;
 
+  /// La misión a la que pertenece el desafío, para pedirle a la API que
+  /// redacte uno con IA (ADM27). Sin ella el botón no se muestra.
+  final int? misionId;
+
   const FormularioDesafio({
     super.key,
     required this.desafio,
     required this.alGuardar,
     required this.textoBoton,
+    this.misionId,
   });
 
   @override
@@ -64,6 +69,14 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
   bool _guardando = false;
   String _error = '';
   String _aviso = '';
+
+  /// Redacción con IA en curso (ADM27).
+  bool _redactando = false;
+
+  /// La pista que propuso la IA. Se muestra aparte y no se guarda con el
+  /// desafío: las pistas viven en su propia pantalla (ADM13), y en el alta el
+  /// desafío todavía no tiene id del que colgarlas.
+  String _pistaSugerida = '';
 
   /// Errores de lo que no es un campo de texto: el tipo, el objeto y las
   /// opciones. Los de los campos de texto los muestra cada TextFormField.
@@ -234,6 +247,76 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
     if (_correcta == null || _correcta! >= _opciones.length) return null;
     final texto = _opciones[_correcta!].text.trim();
     return texto.isEmpty ? null : texto;
+  }
+
+  /// Pide a la API un borrador escrito por IA y lo carga en el formulario
+  /// (ADM27).
+  ///
+  /// No guarda nada: lo que llega queda en los campos para que el
+  /// administrador lo lea, lo corrija y lo guarde si le gusta. La IA propone,
+  /// la persona decide.
+  Future<void> _redactarConIa() async {
+    final indicacion = await showDialog<String>(
+      context: context,
+      builder: (_) => const _DialogoIndicacion(),
+    );
+    // null es cancelar; una cadena vacía es "redactá sin indicación".
+    if (indicacion == null || !mounted) return;
+
+    setState(() {
+      _redactando = true;
+      _error = '';
+      _aviso = '';
+      _pistaSugerida = '';
+    });
+
+    try {
+      final borrador = await redactarDesafio(
+        ProveedorSesion.de(context).token!,
+        widget.misionId!,
+        objetoId: _objetoId!,
+        tipo: _tipo!.valorApi,
+        indicacion: indicacion,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _enunciado.text = borrador.enunciado;
+        _pistaSugerida = borrador.pista;
+
+        if (_tipo == TipoDesafio.preguntaOpcionMultiple) {
+          // La lista de campos se estira o se acorta para que entren las
+          // opciones que vinieron, sin bajar del mínimo.
+          while (_opciones.length < borrador.opciones.length) {
+            _opciones.add(TextEditingController());
+          }
+          while (_opciones.length > borrador.opciones.length &&
+              _opciones.length > minimoOpciones) {
+            _opciones.removeLast().dispose();
+          }
+          for (var i = 0; i < _opciones.length; i++) {
+            _opciones[i].text = i < borrador.opciones.length ? borrador.opciones[i] : '';
+          }
+          final correcta = borrador.opciones.indexOf(borrador.respuestaCorrecta ?? '');
+          _correcta = correcta >= 0 ? correcta : null;
+        }
+
+        if (_tipo == TipoDesafio.respuestaCorta) {
+          _respuesta.text = borrador.respuestaCorrecta ?? '';
+        }
+
+        _erroresPropios.clear();
+        _erroresApi = {};
+        _aviso = 'Listo. Leé el borrador y corregí lo que quieras antes de guardar.';
+      });
+    } on ErrorApi catch (error) {
+      if (mounted) setState(() => _error = error.mensaje);
+    } catch (error, pila) {
+      debugPrint('Fallo al redactar con IA: $error\n$pila');
+      if (mounted) setState(() => _error = 'No se pudo redactar el desafío.');
+    } finally {
+      if (mounted) setState(() => _redactando = false);
+    }
   }
 
   Future<void> _guardar() async {
@@ -423,6 +506,8 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
 
           _selectorDeObjeto(),
 
+          if (widget.misionId != null) _redaccionConIa(),
+
           const SizedBox(height: 26),
           BotonPrincipal(
             texto: widget.textoBoton,
@@ -431,6 +516,66 @@ class _FormularioDesafioState extends State<FormularioDesafio> {
             alTocar: _guardar,
           ),
         ],
+      ),
+    );
+  }
+
+  /// El bloque de redacción con IA (ADM27).
+  ///
+  /// Pide tipo y pieza elegidos, porque la IA escribe *sobre* una pieza: sin
+  /// ella estaría inventando el contenido del museo, que es justo lo que no
+  /// queremos.
+  Widget _redaccionConIa() {
+    final listo = _tipo != null && _objetoId != null;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.superficie,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Redactar con IA', style: AppText.sans(size: 14.5, peso: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(
+              listo
+                  ? 'Escribe un borrador a partir de los datos de la pieza elegida. '
+                      'Lo podés corregir antes de guardar.'
+                  : 'Elegí el tipo de desafío y la pieza, y la IA escribe un borrador.',
+              style: AppText.sans(size: 12.5),
+            ),
+            const SizedBox(height: 12),
+            Semantics(
+              button: true,
+              enabled: listo && !_redactando,
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: listo && !_redactando ? _redactarConIa : null,
+                  child: Text(_redactando ? 'Redactando…' : 'Redactar con IA'),
+                ),
+              ),
+            ),
+            if (_pistaSugerida.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Pista sugerida: $_pistaSugerida\n'
+                  'Las pistas se cargan en su propia pantalla, después de guardar.',
+                  style: AppText.sans(size: 12.5),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -904,6 +1049,66 @@ class _FiltroDeCategoria extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Pide una indicación opcional antes de redactar con IA (ADM27).
+///
+/// Devuelve la indicación (puede ser vacía, que significa «redactá sin
+/// indicación») o null si se cancela.
+class _DialogoIndicacion extends StatefulWidget {
+  const _DialogoIndicacion();
+
+  @override
+  State<_DialogoIndicacion> createState() => _DialogoIndicacionState();
+}
+
+class _DialogoIndicacionState extends State<_DialogoIndicacion> {
+  final _texto = TextEditingController();
+
+  @override
+  void dispose() {
+    _texto.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.superficie,
+      title: Text('Redactar con IA', style: AppText.serif(size: 19)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Si querés, pedile algo en particular. Es opcional.',
+            style: AppText.sans(size: 13),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _texto,
+            style: estiloCampo,
+            autofocus: true,
+            maxLength: 300,
+            minLines: 2,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: decoracionCampo(pista: 'Ej: que hable del tamaño'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_texto.text),
+          child: const Text('Redactar'),
+        ),
+      ],
     );
   }
 }

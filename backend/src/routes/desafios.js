@@ -3,6 +3,8 @@ import { pool } from '../db.js';
 import { recalcularDificultad } from '../dificultad.js';
 import { responderSiEsErrorDeDatos } from '../erroresDeDatos.js';
 import { verificarToken, requerirRol } from '../middleware/auth.js';
+import { limiteDeRedaccion } from '../middleware/limites.js';
+import { ErrorDeIa, TIPOS_REDACTABLES, redactarDesafio } from '../ia.js';
 import { validarDesafio } from '../validaciones/desafio.js';
 import { esIdValido } from '../validaciones/id.js';
 
@@ -110,6 +112,94 @@ desafiosDeMisionRouter.post('/', async (req, res) => {
     if (responderSiEsErrorDeDatos(err, res)) return;
     throw err;
   }
+});
+
+// POST /misiones/:misionId/desafios/redaccion — propone un desafio escrito por
+// IA a partir de los datos de una pieza (ADM27).
+//
+// Devuelve un BORRADOR y no guarda nada: la app lo carga en el formulario y el
+// administrador lo edita y lo guarda con el POST de siempre. La IA propone, la
+// persona decide.
+//
+// Va limitada aparte porque es la unica ruta del sistema que cuesta plata por
+// pedido.
+desafiosDeMisionRouter.post('/redaccion', limiteDeRedaccion, async (req, res) => {
+  const { misionId } = req.params;
+  if (!esIdValido(misionId)) return res.status(404).json(MISION_NO_ENCONTRADA);
+
+  const { objeto_id, tipo, indicacion } = req.body ?? {};
+
+  if (!TIPOS_REDACTABLES.includes(tipo)) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { tipo: 'El tipo de desafío no es válido' },
+    });
+  }
+  // La pieza es obligatoria aunque el tipo no la exija: redactar sin pieza
+  // seria pedirle a la IA que invente el contenido del museo, que es
+  // exactamente lo que no queremos.
+  if (!esIdValido(objeto_id)) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { objeto_id: 'Elegí la pieza sobre la que redactar' },
+    });
+  }
+  if (indicacion !== undefined && indicacion !== null && typeof indicacion !== 'string') {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { indicacion: 'La indicación tiene que ser texto' },
+    });
+  }
+
+  // La mision tiene que existir antes de llamar a la IA. No alcanza con que
+  // el id tenga forma valida: redactar cuesta plata, y gastarla para despues
+  // descubrir que la mision no existe es tirarla.
+  const mision = await pool.query('SELECT 1 FROM misiones WHERE id = $1', [misionId]);
+  if (mision.rowCount === 0) return res.status(404).json(MISION_NO_ENCONTRADA);
+
+  const { rows } = await pool.query(
+    `SELECT o.nombre, o.descripcion, o.dato_clave, s.nombre AS sala, c.nombre AS categoria
+       FROM objetos o
+       JOIN salas s ON s.id = o.sala_id
+       LEFT JOIN categorias c ON c.id = o.categoria_id
+      WHERE o.id = $1`,
+    [objeto_id]
+  );
+  if (rows.length === 0) {
+    return res.status(400).json({
+      error: 'Datos inválidos',
+      errores: { objeto_id: 'El objeto elegido no existe' },
+    });
+  }
+
+  let borrador;
+  try {
+    borrador = await redactarDesafio({
+      pieza: rows[0],
+      tipo,
+      indicacion: typeof indicacion === 'string' ? indicacion.trim().slice(0, 300) : '',
+    });
+  } catch (err) {
+    if (err instanceof ErrorDeIa) return res.status(err.estado).json({ error: err.message });
+    throw err;
+  }
+
+  // El borrador pasa por el mismo validador que el formulario, antes de que
+  // el administrador lo vea. Si la IA propusiera algo que el formulario va a
+  // rechazar —opciones repetidas, o una respuesta correcta que no esta entre
+  // las opciones— es mejor pedir otra redaccion que mostrarle un borrador que
+  // no se puede guardar.
+  const { errores } = validarDesafio({ ...borrador, tipo, objeto_id: Number(objeto_id) });
+  if (Object.keys(errores).length > 0) {
+    return res.status(502).json({
+      error: 'El borrador no vino bien armado. Probá de nuevo.',
+      errores,
+    });
+  }
+
+  // La pista va aparte: se carga con las rutas de pistas (ADM13), no es una
+  // columna del desafio.
+  return res.json({ borrador: { ...borrador, tipo, objeto_id: Number(objeto_id) } });
 });
 
 // PUT /misiones/:misionId/desafios/orden — reordena los desafios (ADM10).

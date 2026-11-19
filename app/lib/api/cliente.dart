@@ -127,7 +127,12 @@ Future<Map<String, dynamic>> _pedirJson(
     // desactivada) su mensaje explica el motivo y es mejor que uno genérico.
     // Cuando falla ella misma, no: "Error interno del servidor" no le dice
     // nada a quien está en una sala del museo.
-    final suyo = respuesta.statusCode < 500 ? _mensajeDeError(respuesta) : null;
+    //
+    // El 503 es la excepción: la API lo usa a propósito para avisar que algo
+    // que ella necesita no está configurado o no contesta, y ahí su mensaje sí
+    // dice qué pasa. Si viniera sin cuerpo legible, igual cae en el genérico.
+    final mensajeSuyoSirve = respuesta.statusCode < 500 || respuesta.statusCode == 503;
+    final suyo = mensajeSuyoSirve ? _mensajeDeError(respuesta) : null;
     throw ErrorApi(
       suyo ?? 'El museo no está respondiendo. Probá de nuevo en un rato.',
       errores: respuesta.statusCode < 500 ? _erroresPorCampo(respuesta) : const {},
@@ -383,6 +388,54 @@ Future<Desafio> crearDesafio(String token, int misionId, Map<String, dynamic> da
     mensaje404: 'Esa misión ya no existe.',
   );
   return _desafioDesde(cuerpo);
+}
+
+/// Lo que la IA propone para un desafío (ADM27). Todavía no está guardado.
+typedef BorradorDesafio = ({
+  String enunciado,
+  List<String> opciones,
+  String? respuestaCorrecta,
+  String pista,
+});
+
+/// POST /misiones/:id/desafios/redaccion — pide un borrador escrito por IA.
+///
+/// No guarda nada: lo que vuelve se carga en el formulario para que el
+/// administrador lo edite y lo guarde si le gusta.
+///
+/// La llamada a la IA la hace el servidor. La app nunca ve la clave de la API,
+/// que si viajara dentro del APK se podría extraer.
+Future<BorradorDesafio> redactarDesafio(
+  String token,
+  int misionId, {
+  required int objetoId,
+  required String tipo,
+  String? indicacion,
+}) async {
+  final cuerpo = await _pedirJson(
+    '/misiones/$misionId/desafios/redaccion',
+    token: token,
+    metodo: 'POST',
+    cuerpo: {
+      'objeto_id': objetoId,
+      'tipo': tipo,
+      if (indicacion != null && indicacion.trim().isNotEmpty) 'indicacion': indicacion.trim(),
+    },
+    mensaje404: 'Esa misión ya no existe.',
+  );
+  try {
+    final borrador = cuerpo['borrador'] as Map<String, dynamic>;
+    return (
+      enunciado: borrador['enunciado'] as String,
+      opciones: ((borrador['opciones'] as List?) ?? const [])
+          .map((o) => o as String)
+          .toList(),
+      respuestaCorrecta: borrador['respuesta_correcta'] as String?,
+      pista: (borrador['pista'] as String?) ?? '',
+    );
+  } catch (_) {
+    throw const ErrorApi('La respuesta del museo no se entendió.');
+  }
 }
 
 /// PUT /desafios/:id — guarda los cambios de un desafío.

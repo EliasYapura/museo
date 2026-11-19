@@ -203,6 +203,7 @@ class _PantallaDesafioAdminState extends State<PantallaDesafioAdmin> {
                       desafio: widget.desafio,
                       alGuardar: _guardar,
                       textoBoton: _esAlta ? 'Agregar desafío' : 'Guardar cambios',
+                      misionId: widget.misionId,
                     ),
                     // Las pistas van en su propia pantalla, y sólo al editar:
                     // en el alta el desafío todavía no tiene id del que

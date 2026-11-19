@@ -97,3 +97,24 @@ export const limiteDeRegistro = rateLimit({
     'Se crearon demasiadas cuentas desde esta conexión. Probá de nuevo más tarde.'
   ),
 });
+
+/// Redacciones con IA (ADM27).
+///
+/// Esta ruta es la unica del sistema que cuesta plata por pedido: cada llamada
+/// se le factura al museo. Sin limite, un boton que se queda apretado o un
+/// script con el token de un administrador vacian el credito.
+///
+/// Treinta por hora y por administrador alcanza de sobra para armar una mision
+/// entera en una sesion de trabajo. Se cuenta por usuario y no por IP porque
+/// aca ya sabemos quien es: todos los administradores del museo pueden estar
+/// detras de la misma conexion.
+export const limiteDeRedaccion = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.usuario?.id ?? porIp(req)),
+  handler: demasiados(
+    'Se usaron demasiadas redacciones con IA en la última hora. Probá de nuevo más tarde.'
+  ),
+});

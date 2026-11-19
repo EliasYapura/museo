@@ -29,6 +29,20 @@ if (!/^sb_secret_[A-Za-z0-9_-]+$/.test(process.env.SUPABASE_SERVICE_KEY)) {
   );
 }
 
+// La clave de Anthropic es opcional: sin ella el servidor levanta igual y lo
+// unico que no anda es redactar desafios con IA (ADM27), que avisa con un
+// mensaje claro. No se exige al arrancar para que el despliegue no dependa de
+// una funcion que es una ayuda, no el producto.
+//
+// Si esta, se revisa la forma: una clave mal pegada fallaria recien al apretar
+// el boton, y el error de la API no dice que el problema es el pegado.
+if (process.env.ANTHROPIC_API_KEY && !/^sk-ant-[A-Za-z0-9_-]+$/.test(process.env.ANTHROPIC_API_KEY)) {
+  throw new Error(
+    'ANTHROPIC_API_KEY no parece una clave de Anthropic (empieza con sk-ant-). ' +
+      'Revisá que no haya quedado con comillas, espacios o cortada.'
+  );
+}
+
 export const config = {
   puerto: Number(process.env.PORT) || 3000,
   databaseUrl: process.env.DATABASE_URL,
@@ -38,6 +52,9 @@ export const config = {
   supabaseUrl: process.env.SUPABASE_URL.replace(/\/+$/, ''),
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
   jwtExpira: process.env.JWT_EXPIRA || '8h',
+  // Clave de la API de Anthropic, para redactar desafios (ADM27). Vive solo
+  // aca: la llamada la hace el servidor, nunca la app.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
   // Origenes autorizados por CORS: el de la app del visitante cuando se la
   // corre en el navegador. En un emulador o en un telefono no hace falta,
   // porque CORS es una regla de los navegadores.
