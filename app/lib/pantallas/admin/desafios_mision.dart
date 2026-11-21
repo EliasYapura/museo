@@ -9,7 +9,7 @@ import 'desafio_admin.dart';
 
 /// Los desafíos de una misión, en el orden en que los resuelve el visitante.
 ///
-/// Por ahora solo se ven: crear, editar, reordenar y borrar llegan después.
+/// Se pueden crear, editar, reordenar y borrar desde acá.
 class PantallaDesafiosMision extends StatefulWidget {
   final int misionId;
 

@@ -10,8 +10,8 @@ import 'admin/objetos_admin.dart';
 
 /// Portada de administración: lo primero que ve el equipo del museo al entrar.
 ///
-/// Por ahora resume cuánto contenido hay cargado. Las pantallas de misiones,
-/// desafíos y objetos se van sumando acá a medida que se trasladan del panel.
+/// Resume cuánto contenido hay cargado y es la entrada a las pantallas de
+/// misiones, objetos, insignias y estadísticas.
 class PantallaAdministracion extends StatefulWidget {
   const PantallaAdministracion({super.key});
 

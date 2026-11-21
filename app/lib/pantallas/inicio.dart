@@ -6,11 +6,6 @@ import 'misiones.dart';
 import 'perfil.dart';
 
 /// Pantalla principal: la barra de abajo y lo que se muestra en cada pestaña.
-///
-/// Misiones, Insignias y Perfil funcionan. Progreso sigue apagada: mostraría
-/// el avance de todas las misiones juntas, y ninguna historia del backlog la
-/// pide todavía. Se deja a la vista para que la app se lea completa, pero
-/// deshabilitada para no prometer algo que no está.
 class PantallaInicio extends StatefulWidget {
   const PantallaInicio({super.key});
 
@@ -46,17 +41,13 @@ class _BarraNavegacion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // El tercer valor dice si la pestaña está habilitada.
+    // Cada ícono es una pestaña y van en el mismo orden que las pantallas del
+    // IndexedStack: el índice sirve para las dos cosas.
     const items = [
-      (Icons.explore_outlined, 'Misiones', true),
-      (Icons.bar_chart_rounded, 'Progreso', false),
-      (Icons.hexagon_outlined, 'Insignias', true),
-      (Icons.person_outline, 'Perfil', true),
+      (Icons.explore_outlined, 'Misiones'),
+      (Icons.hexagon_outlined, 'Insignias'),
+      (Icons.person_outline, 'Perfil'),
     ];
-    // Progreso sigue apagada, así que los íconos y las pantallas no van uno a
-    // uno: Insignias es el tercer ícono pero la segunda pantalla, y Perfil el
-    // cuarto ícono pero la tercera.
-    const pantallaDe = {0: 0, 2: 1, 3: 2};
 
     return Container(
       decoration: const BoxDecoration(
@@ -74,9 +65,8 @@ class _BarraNavegacion extends StatelessWidget {
                 _ItemNav(
                   icono: items[i].$1,
                   etiqueta: items[i].$2,
-                  habilitado: items[i].$3,
-                  activo: pantallaDe[i] == pestana,
-                  alTocar: items[i].$3 ? () => alElegir(pantallaDe[i]!) : null,
+                  activo: i == pestana,
+                  alTocar: () => alElegir(i),
                 ),
             ],
           ),
@@ -90,14 +80,12 @@ class _ItemNav extends StatelessWidget {
   final IconData icono;
   final String etiqueta;
   final bool activo;
-  final bool habilitado;
-  final VoidCallback? alTocar;
+  final VoidCallback alTocar;
 
   const _ItemNav({
     required this.icono,
     required this.etiqueta,
     required this.activo,
-    required this.habilitado,
     required this.alTocar,
   });
 
@@ -105,33 +93,31 @@ class _ItemNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = activo ? AppColors.acento : AppColors.textoInactivo;
 
+    // excludeSemantics: sin esto el lector de pantalla anuncia el ícono y el
+    // texto por separado, y la etiqueta se escucha dos veces.
     return Semantics(
-      button: habilitado,
+      button: true,
       selected: activo,
-      enabled: habilitado,
       label: etiqueta,
       excludeSemantics: true,
-      child: Opacity(
-        opacity: habilitado ? 1 : 0.4,
-        child: InkWell(
-          onTap: alTocar,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icono, size: 22, color: color),
-                const SizedBox(height: 4),
-                Text(
-                  etiqueta,
-                  style: AppText.sans(
-                    size: 11,
-                    color: color,
-                    peso: activo ? FontWeight.w700 : FontWeight.w400,
-                  ),
+      child: InkWell(
+        onTap: alTocar,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icono, size: 22, color: color),
+              const SizedBox(height: 4),
+              Text(
+                etiqueta,
+                style: AppText.sans(
+                  size: 11,
+                  color: color,
+                  peso: activo ? FontWeight.w700 : FontWeight.w400,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

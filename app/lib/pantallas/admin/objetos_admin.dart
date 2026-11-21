@@ -10,8 +10,7 @@ import 'objeto_admin.dart';
 
 /// Las piezas del museo, en el orden del recorrido.
 ///
-/// Por ahora sólo se ven: cargar, editar, ver el código QR y dar de baja
-/// llegan después.
+/// Se pueden cargar, editar, ver el código QR y dar de baja desde acá.
 ///
 /// En el panel web es una tabla de seis columnas. En un teléfono no entra, así
 /// que cada pieza es una tarjeta y los datos se apilan.
