@@ -135,7 +135,17 @@ export async function redactarDesafio({ pieza, tipo, indicacion }) {
       output_config: { format: zodOutputFormat(esquemaDe(tipo)) },
     });
   } catch (err) {
-    // 401 es clave mal pegada o revocada; 400 por saldo tambien llega aca.
+    // El saldo agotado llega como 400, igual que un pedido mal armado, y lo
+    // unico que los distingue es el texto que manda Anthropic. Vale la pena
+    // mirarlo: es el error mas probable en una cuenta recien hecha, y el
+    // administrador no tiene como adivinar que lo que falta es plata.
+    if (err?.status === 400 && /credit balance/i.test(err?.message ?? '')) {
+      throw new ErrorDeIa(
+        'La cuenta de Anthropic no tiene crédito disponible. Hay que cargar saldo en console.anthropic.com.',
+        503
+      );
+    }
+    // 401 es clave mal pegada o revocada.
     if (err?.status === 401) {
       throw new ErrorDeIa('La clave de la API de Anthropic no es válida.', 503);
     }

@@ -112,30 +112,42 @@ try {
       tipo: 'pregunta_opcion_multiple',
       indicacion: 'Que la pregunta hable del tamaño de la pieza.',
     });
-    comprobar('redacta -> 200', r.estado === 200, `estado ${r.estado} ${JSON.stringify(r.cuerpo).slice(0, 200)}`);
+    // Una cuenta de Anthropic recien hecha, sin saldo, rechaza todo. No es un
+    // fallo del sistema y no tiene sentido darlo por malo: lo que se comprueba
+    // ahi es que el aviso diga que falta credito y no un error cualquiera.
+    if (r.estado === 503) {
+      comprobar(
+        'sin crédito -> el aviso lo dice',
+        String(r.cuerpo?.error ?? '').includes('crédito'),
+        JSON.stringify(r.cuerpo)
+      );
+      console.log('\n  (la cuenta de Anthropic no tiene crédito: no se probó la redacción real)');
+    } else {
+      comprobar('redacta -> 200', r.estado === 200, `estado ${r.estado} ${JSON.stringify(r.cuerpo).slice(0, 200)}`);
 
-    const borrador = r.cuerpo?.borrador ?? {};
-    comprobar('trae enunciado', typeof borrador.enunciado === 'string' && borrador.enunciado.length > 10,
-      JSON.stringify(borrador.enunciado));
-    comprobar('trae pista', typeof borrador.pista === 'string' && borrador.pista.length > 0,
-      JSON.stringify(borrador.pista));
-    comprobar(
-      'la respuesta correcta esta entre las opciones',
-      Array.isArray(borrador.opciones) && borrador.opciones.includes(borrador.respuesta_correcta),
-      JSON.stringify({ opciones: borrador.opciones, correcta: borrador.respuesta_correcta })
-    );
+      const borrador = r.cuerpo?.borrador ?? {};
+      comprobar('trae enunciado', typeof borrador.enunciado === 'string' && borrador.enunciado.length > 10,
+        JSON.stringify(borrador.enunciado));
+      comprobar('trae pista', typeof borrador.pista === 'string' && borrador.pista.length > 0,
+        JSON.stringify(borrador.pista));
+      comprobar(
+        'la respuesta correcta esta entre las opciones',
+        Array.isArray(borrador.opciones) && borrador.opciones.includes(borrador.respuesta_correcta),
+        JSON.stringify({ opciones: borrador.opciones, correcta: borrador.respuesta_correcta })
+      );
 
-    // Lo que importa de verdad: que el borrador se pueda guardar tal cual.
-    const { errores } = validarDesafio({ ...borrador, puntos: 10 });
-    comprobar(
-      'el borrador pasa el validador del formulario',
-      Object.keys(errores).length === 0,
-      JSON.stringify(errores)
-    );
+      // Lo que importa de verdad: que el borrador se pueda guardar tal cual.
+      const { errores } = validarDesafio({ ...borrador, puntos: 10 });
+      comprobar(
+        'el borrador pasa el validador del formulario',
+        Object.keys(errores).length === 0,
+        JSON.stringify(errores)
+      );
 
-    // No se guarda: la ruta devuelve un borrador y nada mas.
-    const { rows } = await bd.query('SELECT count(*)::int AS n FROM desafios WHERE mision_id = $1', [misionId]);
-    comprobar('no guardo ningun desafio', rows[0].n === 0, `desafios: ${rows[0].n}`);
+      // No se guarda: la ruta devuelve un borrador y nada mas.
+      const { rows } = await bd.query('SELECT count(*)::int AS n FROM desafios WHERE mision_id = $1', [misionId]);
+      comprobar('no guardo ningun desafio', rows[0].n === 0, `desafios: ${rows[0].n}`);
+    }
   }
 } finally {
   if (misionId) await bd.query('DELETE FROM misiones WHERE id = $1', [misionId]);
